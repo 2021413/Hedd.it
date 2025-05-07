@@ -5,7 +5,7 @@ import { useState } from "react";
 import AuthModal from "../auth/AuthModal";
 
 interface LockedHeaderProps {
-    showBurgerButton: boolean;
+    showBurgerButton?: boolean;
     onBurgerClick?: () => void;
     isMenuOpen?: boolean;
 }

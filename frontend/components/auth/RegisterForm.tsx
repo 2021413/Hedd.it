@@ -13,14 +13,55 @@ export default function RegisterForm({ onModeChange }: RegisterFormProps) {
         password: "",
         confirmPassword: "",
     })
+    const [error, setError] = useState<string | null>(null)
+    const [loading, setLoading] = useState(false)
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setForm({ ...form, [e.target.name]: e.target.value })
+        setError(null)
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        // ...envoyer les données à Strapi
+        setError(null)
+        setLoading(true)
+
+        if (form.password !== form.confirmPassword) {
+            setError("Les mots de passe ne correspondent pas")
+            setLoading(false)
+            return
+        }
+
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/auth/local/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: form.username,
+                    email: form.email,
+                    password: form.password,
+                }),
+            })
+
+            const data = await response.json()
+
+            if (!response.ok) {
+                throw new Error(data.error?.message || "Une erreur est survenue lors de l'inscription")
+            }
+
+            // Stockage du token dans le localStorage
+            localStorage.setItem('jwt', data.jwt)
+            localStorage.setItem('user', JSON.stringify(data.user))
+            
+            // Redirection ou mise à jour de l'état de l'application
+            window.location.href = '/' // ou utilisez un router pour la navigation
+        } catch (err: any) {
+            setError(err.message || "Une erreur est survenue lors de l'inscription")
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -29,6 +70,12 @@ export default function RegisterForm({ onModeChange }: RegisterFormProps) {
             className="text-white max-w-md mx-auto p-8 rounded-2xl space-y-4 text-center h-[550px] relative"
         >
             <h2 className="text-2xl font-semibold mb-4">S'inscrire</h2>
+
+            {error && (
+                <div className="bg-red-500/10 border border-red-500 text-red-500 p-2 rounded-lg text-sm">
+                    {error}
+                </div>
+            )}
 
             <p className="text-sm mb-4">
                 En continuant, tu acceptes notre{" "}
@@ -76,9 +123,10 @@ export default function RegisterForm({ onModeChange }: RegisterFormProps) {
                 </div>
                 <button
                     type="submit"
-                    className="w-full bg-green-900 text-white py-2 rounded-full hover:bg-green-800"
+                    disabled={loading}
+                    className="w-full bg-green-900 text-white py-2 rounded-full hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    s'inscrire
+                    {loading ? "Inscription en cours..." : "s'inscrire"}
                 </button>
             </div>
         </form>

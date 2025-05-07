@@ -11,6 +11,11 @@ interface SidebarProps {
   isOpen: boolean;
   width: number;
   strokeLeft: number;
+  user: {
+    id: number;
+    username: string;
+    email: string;
+  } | null;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ showBurgerButton, onBurgerClick, isMenuOpen, isOpen, width, strokeLeft }) => {

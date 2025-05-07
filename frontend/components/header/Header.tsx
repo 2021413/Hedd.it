@@ -7,13 +7,24 @@ interface HeaderProps {
     showBurgerButton: boolean;
     onBurgerClick: () => void;
     isMenuOpen: boolean;
+    user: {
+        id: number;
+        username: string;
+        email: string;
+    } | null;
 }
 
-const Header: React.FC<HeaderProps> = ({ showBurgerButton, onBurgerClick, isMenuOpen }) => {
+const Header: React.FC<HeaderProps> = ({ showBurgerButton, onBurgerClick, isMenuOpen, user }) => {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const profileMenuRef = useRef<HTMLDivElement>(null);
+
+    const handleLogout = () => {
+        localStorage.removeItem('jwt');
+        localStorage.removeItem('user');
+        window.location.href = '/';
+    };
 
     // Close dropdowns when clicking outside
     useEffect(() => {
@@ -94,6 +105,10 @@ const Header: React.FC<HeaderProps> = ({ showBurgerButton, onBurgerClick, isMenu
                     
                     {profileMenuOpen && (
                         <div className="absolute right-0 mt-2 w-48 bg-zinc-800 rounded-md shadow-lg py-1 z-50 border border-[#003E1C]">
+                            <div className="px-4 py-2 text-sm border-b border-zinc-700">
+                                Connecté en tant que<br />
+                                <span className="font-semibold">{user?.username}</span>
+                            </div>
                             <Link 
                                 href="/profile" 
                                 className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-zinc-700"
@@ -113,7 +128,10 @@ const Header: React.FC<HeaderProps> = ({ showBurgerButton, onBurgerClick, isMenu
                             <div className="border-t border-zinc-700 my-1"></div>
                             <button 
                                 className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-zinc-700 w-full text-left text-red-400"
-                                onClick={() => setProfileMenuOpen(false)}
+                                onClick={() => {
+                                    setProfileMenuOpen(false);
+                                    handleLogout();
+                                }}
                             >
                                 <LogOut size={16} />
                                 Se déconnecter
