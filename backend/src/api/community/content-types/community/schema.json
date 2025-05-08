@@ -63,9 +63,9 @@
     "rules": {
       "type": "json"
     },
-    "post": {
+    "posts": {
       "type": "relation",
-      "relation": "oneToOne",
+      "relation": "oneToMany",
       "target": "api::post.post",
       "mappedBy": "community"
     }

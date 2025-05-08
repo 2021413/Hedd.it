@@ -23,7 +23,8 @@
     "upvotes": {
       "type": "relation",
       "relation": "manyToMany",
-      "target": "plugin::users-permissions.user"
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "upvotedComments"
     },
     "downvotes": {
       "type": "relation",

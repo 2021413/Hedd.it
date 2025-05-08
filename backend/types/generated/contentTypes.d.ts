@@ -499,7 +499,7 @@ export interface ApiCommunityCommunity extends Struct.CollectionTypeSchema {
       'plugin::users-permissions.user'
     >;
     name: Schema.Attribute.String;
-    post: Schema.Attribute.Relation<'oneToOne', 'api::post.post'>;
+    posts: Schema.Attribute.Relation<'oneToMany', 'api::post.post'>;
     publishedAt: Schema.Attribute.DateTime;
     rules: Schema.Attribute.JSON;
     strapi_assignee: Schema.Attribute.Relation<'oneToOne', 'admin::user'>;
@@ -1094,6 +1094,10 @@ export interface PluginUsersPermissionsUser
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    upvotedComments: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::comment.comment'
+    >;
     upvotedPosts: Schema.Attribute.Relation<'manyToMany', 'api::post.post'>;
     username: Schema.Attribute.String &
       Schema.Attribute.Required &

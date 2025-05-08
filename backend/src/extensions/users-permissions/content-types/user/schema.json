@@ -103,36 +103,6 @@
       "target": "api::community.community",
       "mappedBy": "members"
     },
-    "authoredComments": {
-      "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::comment.comment",
-      "mappedBy": "author"
-    },
-    "downvotedComments": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::comment.comment",
-      "mappedBy": "downvotes"
-    },
-    "upvotedPosts": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::post.post",
-      "mappedBy": "upvotes"
-    },
-    "downvotedPosts": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::post.post",
-      "mappedBy": "downvotes"
-    },
-    "createdPosts": {
-      "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::post.post",
-      "mappedBy": "author"
-    },
     "moderatedCommunities": {
       "type": "relation",
       "relation": "manyToMany",
@@ -144,6 +114,42 @@
       "relation": "oneToMany",
       "target": "api::community.community",
       "mappedBy": "creator"
+    },
+    "createdPosts": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::post.post",
+      "mappedBy": "author"
+    },
+    "upvotedPosts": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::post.post",
+      "inversedBy": "upvotes"
+    },
+    "downvotedPosts": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::post.post",
+      "inversedBy": "downvotes"
+    },
+    "authoredComments": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::comment.comment",
+      "mappedBy": "author"
+    },
+    "upvotedComments": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::comment.comment",
+      "inversedBy": "upvotes"
+    },
+    "downvotedComments": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::comment.comment",
+      "inversedBy": "downvotes"
     }
   }
 }
