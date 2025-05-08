@@ -11,6 +11,11 @@ interface User {
     id: number;
     username: string;
     email: string;
+    avatar?: {
+        id: number;
+        hash: string;
+        ext: string;
+    };
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -25,14 +30,46 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         // Vérifier l'authentification au chargement
-        const checkAuth = () => {
+        const checkAuth = async () => {
             const token = localStorage.getItem('jwt');
-            const storedUser = localStorage.getItem('user');
-            
-            if (token && storedUser) {
+            if (!token) {
+                setIsAuthenticated(false);
+                setUser(null);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/users/me?populate[avatar][fields][0]=hash&populate[avatar][fields][1]=ext`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+
+                if (!response.ok) {
+                    localStorage.removeItem('jwt');
+                    localStorage.removeItem('user');
+                    setIsAuthenticated(false);
+                    setUser(null);
+                    return;
+                }
+
+                const userData = await response.json();
+                const userToStore = {
+                    id: userData.id,
+                    username: userData.username,
+                    email: userData.email,
+                    avatar: userData.avatar ? {
+                        id: userData.avatar.id,
+                        hash: userData.avatar.hash,
+                        ext: userData.avatar.ext
+                    } : undefined
+                };
+
+                localStorage.setItem('user', JSON.stringify(userToStore));
+                setUser(userToStore);
                 setIsAuthenticated(true);
-                setUser(JSON.parse(storedUser));
-            } else {
+            } catch (error) {
+                console.error('Erreur lors de la vérification du token:', error);
                 setIsAuthenticated(false);
                 setUser(null);
             }
@@ -50,8 +87,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         window.addEventListener('storage', handleStorageChange);
 
+        // Vérifier toutes les 5 minutes
+        const interval = setInterval(checkAuth, 5 * 60 * 1000);
+
         return () => {
             window.removeEventListener('storage', handleStorageChange);
+            clearInterval(interval);
         };
     }, []);
 
@@ -74,36 +115,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         width: menuOpen ? `calc(100% - ${menuWidth}px)` : '100%',
     };
 
-    // Vérifier la validité du token périodiquement
-    useEffect(() => {
-        const verifyToken = async () => {
-            const token = localStorage.getItem('jwt');
-            if (!token) return;
-
-            try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/users/me`, {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                });
-
-                if (!response.ok) {
-                    // Token invalide ou expiré
-                    localStorage.removeItem('jwt');
-                    localStorage.removeItem('user');
-                    setIsAuthenticated(false);
-                    setUser(null);
-                }
-            } catch (error) {
-                console.error('Erreur lors de la vérification du token:', error);
-            }
-        };
-
-        // Vérifier toutes les 5 minutes
-        const interval = setInterval(verifyToken, 5 * 60 * 1000);
-        return () => clearInterval(interval);
-    }, []);
-
     return (
         <html lang="fr">
             <body>
@@ -117,30 +128,33 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                 user={user}
                             />
                         ) : (
-                            <LockedHeader />
+                            <LockedHeader 
+                                showBurgerButton={isMobile} 
+                                onBurgerClick={() => setMenuOpen(!menuOpen)}
+                                isMenuOpen={menuOpen}
+                                user={user}
+                            />
                         )}
                     </div>
                     
-                    {isAuthenticated && (
-                        <Sidebar 
-                            isOpen={menuOpen} 
-                            width={menuWidth} 
-                            strokeLeft={strokeLeft} 
-                            showBurgerButton={isMobile}
-                            onBurgerClick={() => setMenuOpen(!menuOpen)}
-                            isMenuOpen={menuOpen}
-                            user={user}
-                        />
-                    )}
+                    <Sidebar 
+                        isOpen={menuOpen} 
+                        width={menuWidth} 
+                        strokeLeft={strokeLeft} 
+                        showBurgerButton={isMobile}
+                        onBurgerClick={() => setMenuOpen(!menuOpen)}
+                        isMenuOpen={menuOpen}
+                        user={user}
+                    />
                     
                     <main className="p-4 relative min-h-[calc(100vh-56px)] pt-[76px]" style={mainStyle}>
-                        {!isMobile && isAuthenticated && (
+                        {!isMobile && (
                             <div
                                 className="fixed w-[2px] bg-[#003E1C] transition-all duration-300"
                                 style={{ left: strokeLeft, top: 0, height: '100vh', zIndex: 40 }}
                             ></div>
                         )}
-                        {!isMobile && isAuthenticated && (
+                        {!isMobile && (
                             <BurgerButton
                                 left={`calc(${strokeLeft}px - ${burgerSize / 2 - 1}px)`}
                                 top={burgerTop + 56}

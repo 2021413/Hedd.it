@@ -31,8 +31,8 @@
     "author": {
       "type": "relation",
       "relation": "manyToOne",
-      "target": "api::user-profile.user-profile",
-      "inversedBy": "posts"
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "createdPosts"
     },
     "community": {
       "type": "relation",
@@ -49,12 +49,14 @@
     "upvotes": {
       "type": "relation",
       "relation": "manyToMany",
-      "target": "api::user-profile.user-profile"
+      "target": "plugin::users-permissions.user",
+      "mappedBy": "upvotedPosts"
     },
     "downvotes": {
       "type": "relation",
       "relation": "manyToMany",
-      "target": "api::user-profile.user-profile"
+      "target": "plugin::users-permissions.user",
+      "mappedBy": "downvotedPosts"
     }
   }
 }

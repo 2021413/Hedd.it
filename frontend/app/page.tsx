@@ -1,6 +1,8 @@
 "use client"
 import PostCard from "../components/post/PostCard";
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from 'next/navigation';
+import AuthModal from "../components/auth/AuthModal";
 
 const fakePosts = [
   {
@@ -20,8 +22,27 @@ const fakePosts = [
 ];
 
 export default function HomePage() {
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // Ouvrir le modal si showAuth est présent dans l'URL
+    if (searchParams.get('showAuth') === 'true') {
+      setIsAuthModalOpen(true);
+    }
+  }, [searchParams]);
+
   return (
     <div className="p-6 flex flex-col gap-0">
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          // Nettoyer l'URL
+          window.history.replaceState({}, '', '/');
+        }} 
+      />
+      
       {fakePosts.map((post, idx) => (
         <React.Fragment key={idx}>
           <PostCard {...post} />

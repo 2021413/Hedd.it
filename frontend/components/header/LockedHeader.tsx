@@ -1,13 +1,20 @@
 "use client"
 
-import { Search } from "lucide-react";
-import { useState } from "react";
+import { Bell, Plus, MessageCircle, Search, ChevronDown, User, Settings, LogOut } from "lucide-react";
+import Link from "next/link";
+import { useState, useRef, useEffect } from "react";
 import AuthModal from "../auth/AuthModal";
+import { FiMenu } from 'react-icons/fi';
 
 interface LockedHeaderProps {
     showBurgerButton?: boolean;
     onBurgerClick?: () => void;
     isMenuOpen?: boolean;
+    user?: {
+        id: number;
+        username: string;
+        email: string;
+    } | null;
 }
 
 export default function LockedHeader({ showBurgerButton, onBurgerClick, isMenuOpen }: LockedHeaderProps) {
@@ -16,7 +23,10 @@ export default function LockedHeader({ showBurgerButton, onBurgerClick, isMenuOp
     return (
         <>
             <header className="w-full bg-[#1E1E1E] text-white px-2 sm:px-4 py-4 flex items-center justify-between shadow border-b-2 border-[#003E1C]">
-                <h1 className="text-xl sm:text-2xl font-bold text-[#75BB99]">Hedd.it</h1>
+                <div className="flex items-center">
+                    {showBurgerButton && <FiMenu size={24} className="mr-4 cursor-pointer" onClick={onBurgerClick} />}
+                    <h1 className="text-xl sm:text-2xl font-bold text-[#75BB99]">Hedd.it</h1>
+                </div>
                 <div className="flex-1 flex justify-center mx-2">
                     <div className="relative">
                         <input

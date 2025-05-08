@@ -1,16 +1,22 @@
 import { Bell, Plus, MessageCircle, Search, ChevronDown, User, Settings, LogOut } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useRef, useEffect } from "react";
 import { FiMenu } from 'react-icons/fi';
 
 interface HeaderProps {
-    showBurgerButton: boolean;
-    onBurgerClick: () => void;
-    isMenuOpen: boolean;
+    showBurgerButton?: boolean;
+    onBurgerClick?: () => void;
+    isMenuOpen?: boolean;
     user: {
         id: number;
         username: string;
         email: string;
+        avatar?: {
+            id: number;
+            hash: string;
+            ext: string;
+        };
     } | null;
 }
 
@@ -19,6 +25,10 @@ const Header: React.FC<HeaderProps> = ({ showBurgerButton, onBurgerClick, isMenu
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const profileMenuRef = useRef<HTMLDivElement>(null);
+
+    const getAvatarUrl = (avatar: { hash: string; ext: string }) => {
+        return `${process.env.NEXT_PUBLIC_STRAPI_URL}/uploads/${avatar.hash}${avatar.ext}`;
+    };
 
     const handleLogout = () => {
         localStorage.removeItem('jwt');
@@ -94,13 +104,27 @@ const Header: React.FC<HeaderProps> = ({ showBurgerButton, onBurgerClick, isMenu
                 <Bell size={18} className="sm:w-[20px] sm:h-[20px]" />
                 <div className="relative" ref={profileMenuRef}>
                     <button 
-                        className="cursor-pointer"
+                        className="cursor-pointer relative"
                         onClick={() => setProfileMenuOpen(!profileMenuOpen)}
                         aria-label="Menu profil"
                     >
-                        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-white relative">
-                            <div className="absolute bottom-0 right-0 w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-500" />
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-zinc-800 overflow-hidden">
+                            {user?.avatar ? (
+                                <Image
+                                    src={getAvatarUrl(user.avatar)}
+                                    alt="Photo de profil"
+                                    width={32}
+                                    height={32}
+                                    className="object-cover w-full h-full"
+                                    unoptimized
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                    <User size={20} className="text-zinc-400" />
+                                </div>
+                            )}
                         </div>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-[#1E1E1E]" />
                     </button>
                     
                     {profileMenuOpen && (

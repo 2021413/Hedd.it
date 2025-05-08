@@ -48,7 +48,17 @@ export default function RegisterForm({ onModeChange }: RegisterFormProps) {
             const data = await response.json()
 
             if (!response.ok) {
-                throw new Error(data.error?.message || "Une erreur est survenue lors de l'inscription")
+                if (data.error?.message) {
+                    throw new Error(data.error.message)
+                } else if (data.error?.details?.errors) {
+                    // Handle Strapi validation errors
+                    const errorMessages = data.error.details.errors
+                        .map((error: any) => error.message)
+                        .join(', ')
+                    throw new Error(errorMessages)
+                } else {
+                    throw new Error("Une erreur est survenue lors de l'inscription")
+                }
             }
 
             // Stockage du token dans le localStorage
@@ -88,7 +98,7 @@ export default function RegisterForm({ onModeChange }: RegisterFormProps) {
                 {["username", "email", "password", "confirmPassword"].map((field) => (
                     <div key={field}>
                         <input
-                            type={field.includes("password") ? "password" : "text"}
+                            type={["password", "confirmPassword"].includes(field) ? "password" : "text"}
                             name={field}
                             placeholder={
                                 field === "username"
@@ -97,7 +107,7 @@ export default function RegisterForm({ onModeChange }: RegisterFormProps) {
                                         ? "Adresse email *"
                                         : field === "password"
                                             ? "Mot de passe *"
-                                            : "confirmation du mot de passe *"
+                                            : "Confirmation du mot de passe *"
                             }
                             className="w-full bg-green-100 text-black placeholder:text-gray-500 placeholder:italic px-4 py-2 rounded-lg outline-none border-2 border-[#75BB99]"
                             value={(form as any)[field]}

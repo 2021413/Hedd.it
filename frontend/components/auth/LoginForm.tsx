@@ -39,7 +39,17 @@ export default function LoginForm({ onModeChange }: LoginFormProps) {
             const data = await response.json()
 
             if (!response.ok) {
-                throw new Error(data.error?.message || "Identifiants incorrects")
+                if (data.error?.message) {
+                    throw new Error(data.error.message)
+                } else if (data.error?.details?.errors) {
+                    // Handle Strapi validation errors
+                    const errorMessages = data.error.details.errors
+                        .map((error: any) => error.message)
+                        .join(', ')
+                    throw new Error(errorMessages)
+                } else {
+                    throw new Error("Identifiants incorrects")
+                }
             }
 
             // Stockage du token dans le localStorage

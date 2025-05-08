@@ -17,19 +17,19 @@
     "post": {
       "type": "relation",
       "relation": "manyToOne",
-      "target": "api::post.post"
+      "target": "api::post.post",
+      "inversedBy": "comments"
     },
     "upvotes": {
       "type": "relation",
       "relation": "manyToMany",
-      "target": "api::user-profile.user-profile",
-      "mappedBy": "comment"
+      "target": "plugin::users-permissions.user"
     },
     "downvotes": {
       "type": "relation",
       "relation": "manyToMany",
-      "target": "api::user-profile.user-profile",
-      "mappedBy": "comment"
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "downvotedComments"
     },
     "replies": {
       "type": "relation",
@@ -46,8 +46,8 @@
     "author": {
       "type": "relation",
       "relation": "manyToOne",
-      "target": "api::user-profile.user-profile",
-      "inversedBy": "comments"
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "authoredComments"
     }
   }
 }

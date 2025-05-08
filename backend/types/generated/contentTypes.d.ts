@@ -420,7 +420,7 @@ export interface ApiCommentComment extends Struct.CollectionTypeSchema {
   attributes: {
     author: Schema.Attribute.Relation<
       'manyToOne',
-      'api::user-profile.user-profile'
+      'plugin::users-permissions.user'
     >;
     content: Schema.Attribute.Text;
     createdAt: Schema.Attribute.DateTime;
@@ -428,7 +428,7 @@ export interface ApiCommentComment extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     downvotes: Schema.Attribute.Relation<
       'manyToMany',
-      'api::user-profile.user-profile'
+      'plugin::users-permissions.user'
     >;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
@@ -450,7 +450,7 @@ export interface ApiCommentComment extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     upvotes: Schema.Attribute.Relation<
       'manyToMany',
-      'api::user-profile.user-profile'
+      'plugin::users-permissions.user'
     >;
   };
 }
@@ -479,8 +479,8 @@ export interface ApiCommunityCommunity extends Struct.CollectionTypeSchema {
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
     creator: Schema.Attribute.Relation<
-      'oneToOne',
-      'api::user-profile.user-profile'
+      'manyToOne',
+      'plugin::users-permissions.user'
     >;
     description: Schema.Attribute.Text;
     isPrivate: Schema.Attribute.Boolean;
@@ -492,11 +492,11 @@ export interface ApiCommunityCommunity extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     members: Schema.Attribute.Relation<
       'manyToMany',
-      'api::user-profile.user-profile'
+      'plugin::users-permissions.user'
     >;
     moderators: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::user-profile.user-profile'
+      'manyToMany',
+      'plugin::users-permissions.user'
     >;
     name: Schema.Attribute.String;
     post: Schema.Attribute.Relation<'oneToOne', 'api::post.post'>;
@@ -527,7 +527,7 @@ export interface ApiPostPost extends Struct.CollectionTypeSchema {
   attributes: {
     author: Schema.Attribute.Relation<
       'manyToOne',
-      'api::user-profile.user-profile'
+      'plugin::users-permissions.user'
     >;
     comments: Schema.Attribute.Relation<'oneToMany', 'api::comment.comment'>;
     community: Schema.Attribute.Relation<
@@ -540,7 +540,7 @@ export interface ApiPostPost extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     downvotes: Schema.Attribute.Relation<
       'manyToMany',
-      'api::user-profile.user-profile'
+      'plugin::users-permissions.user'
     >;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<'oneToMany', 'api::post.post'> &
@@ -561,69 +561,8 @@ export interface ApiPostPost extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     upvotes: Schema.Attribute.Relation<
       'manyToMany',
-      'api::user-profile.user-profile'
-    >;
-  };
-}
-
-export interface ApiUserProfileUserProfile extends Struct.CollectionTypeSchema {
-  collectionName: 'user_profiles';
-  info: {
-    description: '';
-    displayName: 'UserProfile';
-    pluralName: 'user-profiles';
-    singularName: 'user-profile';
-  };
-  options: {
-    draftAndPublish: true;
-  };
-  attributes: {
-    avatar: Schema.Attribute.Media<
-      'images' | 'files' | 'videos' | 'audios',
-      true
-    >;
-    banner: Schema.Attribute.Media<
-      'images' | 'files' | 'videos' | 'audios',
-      true
-    >;
-    comment: Schema.Attribute.Relation<'manyToOne', 'api::comment.comment'>;
-    comments: Schema.Attribute.Relation<'oneToMany', 'api::comment.comment'>;
-    community: Schema.Attribute.Relation<
-      'manyToMany',
-      'api::community.community'
-    >;
-    createdAt: Schema.Attribute.DateTime;
-    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    followers: Schema.Attribute.Relation<
-      'manyToOne',
-      'api::user-profile.user-profile'
-    >;
-    locale: Schema.Attribute.String & Schema.Attribute.Private;
-    localizations: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::user-profile.user-profile'
-    > &
-      Schema.Attribute.Private;
-    posts: Schema.Attribute.Relation<'manyToMany', 'api::post.post'>;
-    publishedAt: Schema.Attribute.DateTime;
-    strapi_assignee: Schema.Attribute.Relation<'oneToOne', 'admin::user'>;
-    strapi_stage: Schema.Attribute.Relation<
-      'oneToOne',
-      'plugin::review-workflows.workflow-stage'
-    >;
-    subscriptions: Schema.Attribute.Relation<
-      'oneToMany',
-      'api::user-profile.user-profile'
-    >;
-    updatedAt: Schema.Attribute.DateTime;
-    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
-      Schema.Attribute.Private;
-    user: Schema.Attribute.Relation<
-      'oneToOne',
       'plugin::users-permissions.user'
     >;
-    username: Schema.Attribute.String;
   };
 }
 
@@ -1085,23 +1024,52 @@ export interface PluginUsersPermissionsUser
     timestamps: true;
   };
   attributes: {
+    authoredComments: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::comment.comment'
+    >;
+    avatar: Schema.Attribute.Media<'images'>;
+    banner: Schema.Attribute.Media<'images'>;
+    bio: Schema.Attribute.Text;
     blocked: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
+    communities: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::community.community'
+    >;
     confirmationToken: Schema.Attribute.String & Schema.Attribute.Private;
     confirmed: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    createdCommunities: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::community.community'
+    >;
+    createdPosts: Schema.Attribute.Relation<'oneToMany', 'api::post.post'>;
+    downvotedComments: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::comment.comment'
+    >;
+    downvotedPosts: Schema.Attribute.Relation<'manyToMany', 'api::post.post'>;
     email: Schema.Attribute.Email &
       Schema.Attribute.Required &
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
+    followers: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<
       'oneToMany',
       'plugin::users-permissions.user'
     > &
       Schema.Attribute.Private;
+    moderatedCommunities: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::community.community'
+    >;
     password: Schema.Attribute.Password &
       Schema.Attribute.Private &
       Schema.Attribute.SetMinMaxLength<{
@@ -1119,9 +1087,14 @@ export interface PluginUsersPermissionsUser
       'oneToOne',
       'plugin::review-workflows.workflow-stage'
     >;
+    subscriptions: Schema.Attribute.Relation<
+      'oneToMany',
+      'plugin::users-permissions.user'
+    >;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    upvotedPosts: Schema.Attribute.Relation<'manyToMany', 'api::post.post'>;
     username: Schema.Attribute.String &
       Schema.Attribute.Required &
       Schema.Attribute.Unique &
@@ -1145,7 +1118,6 @@ declare module '@strapi/strapi' {
       'api::comment.comment': ApiCommentComment;
       'api::community.community': ApiCommunityCommunity;
       'api::post.post': ApiPostPost;
-      'api::user-profile.user-profile': ApiUserProfileUserProfile;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;

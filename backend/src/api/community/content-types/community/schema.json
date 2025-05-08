@@ -44,19 +44,21 @@
     },
     "creator": {
       "type": "relation",
-      "relation": "oneToOne",
-      "target": "api::user-profile.user-profile"
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "createdCommunities"
     },
     "moderators": {
       "type": "relation",
-      "relation": "oneToMany",
-      "target": "api::user-profile.user-profile"
+      "relation": "manyToMany",
+      "target": "plugin::users-permissions.user",
+      "mappedBy": "moderatedCommunities"
     },
     "members": {
       "type": "relation",
       "relation": "manyToMany",
-      "target": "api::user-profile.user-profile",
-      "inversedBy": "community"
+      "target": "plugin::users-permissions.user",
+      "mappedBy": "communities"
     },
     "rules": {
       "type": "json"
