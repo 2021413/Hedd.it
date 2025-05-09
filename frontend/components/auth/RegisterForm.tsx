@@ -4,9 +4,10 @@ import { useState } from "react"
 
 interface RegisterFormProps {
     onModeChange: (mode: "login") => void;
+    onSuccess?: () => void;
 }
 
-export default function RegisterForm({ onModeChange }: RegisterFormProps) {
+export default function RegisterForm({ onModeChange, onSuccess }: RegisterFormProps) {
     const [form, setForm] = useState({
         username: "",
         email: "",
@@ -66,8 +67,14 @@ export default function RegisterForm({ onModeChange }: RegisterFormProps) {
             localStorage.setItem('user', JSON.stringify(data.user))
             localStorage.setItem('userId', data.user.id.toString())
             
-            // Redirection ou mise à jour de l'état de l'application
-            window.location.href = '/' // ou utilisez un router pour la navigation
+            // Dispatch un événement personnalisé pour notifier le changement d'authentification
+            window.dispatchEvent(new Event('auth-change'))
+
+            if (onSuccess) {
+                onSuccess();
+            } else {
+                window.location.href = '/' // ou utilisez un router pour la navigation
+            }
         } catch (err: any) {
             setError(err.message || "Une erreur est survenue lors de l'inscription")
         } finally {

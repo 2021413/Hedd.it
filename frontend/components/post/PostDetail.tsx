@@ -102,19 +102,20 @@ function formatDateToNow(dateStr: string): string {
     const diffMonth = Math.floor(diffDay / 30);
     const diffYear = Math.floor(diffMonth / 12);
     
-    if (diffYear > 0) {
-      return diffYear === 1 ? 'il y a 1 an' : `il y a ${diffYear} ans`;
-    } else if (diffMonth > 0) {
-      return diffMonth === 1 ? 'il y a 1 mois' : `il y a ${diffMonth} mois`;
-    } else if (diffDay > 0) {
-      return diffDay === 1 ? 'il y a 1 jour' : `il y a ${diffDay} jours`;
-    } else if (diffHour > 0) {
-      return diffHour === 1 ? 'il y a 1 heure' : `il y a ${diffHour} heures`;
-    } else if (diffMin > 0) {
-      return diffMin === 1 ? 'il y a 1 minute' : `il y a ${diffMin} minutes`;
-    } else {
-      return 'à l\'instant';
-    }
+    const formatValue = (value: number, unit: string, singularUnit?: string) => {
+      if (value === 0) return null;
+      const finalUnit = value === 1 ? (singularUnit || unit.replace(/s$/, '')) : unit;
+      return `il y a ${value} ${finalUnit}`;
+    };
+    
+    return (
+      formatValue(diffYear, 'ans', 'an') ||
+      formatValue(diffMonth, 'mois') ||
+      formatValue(diffDay, 'jours', 'jour') ||
+      formatValue(diffHour, 'heures', 'heure') ||
+      formatValue(diffMin, 'minutes', 'minute') ||
+      'à l\'instant'
+    );
   } catch (error) {
     return "récemment";
   }

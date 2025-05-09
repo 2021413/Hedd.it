@@ -1,49 +1,97 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import LoginForm from "./LoginForm"
-import RegisterForm from "./RegisterForm"
+import { useState, useEffect } from 'react'
+import LoginForm from './LoginForm'
+import RegisterForm from './RegisterForm'
 
 interface AuthModalProps {
     isOpen: boolean
     onClose: () => void
+    defaultMode?: 'login' | 'register'
 }
 
-export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
-    const [mode, setMode] = useState<"login" | "register">("login")
+// Fonction utilitaire pour vérifier la validité du token
+export const verifyToken = async () => {
+    const token = localStorage.getItem('jwt')
+    if (!token) return false
 
-    // Fermer avec ESC
-    useEffect(() => {
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose()
+    try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/users/me`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+
+        if (!response.ok) {
+            // Si le token n'est pas valide, on nettoie le localStorage
+            localStorage.removeItem('jwt')
+            localStorage.removeItem('user')
+            localStorage.removeItem('userId')
+            return false
         }
-        document.addEventListener("keydown", handleEsc)
-        return () => document.removeEventListener("keydown", handleEsc)
-    }, [onClose])
+
+        return true
+    } catch (error) {
+        localStorage.removeItem('jwt')
+        localStorage.removeItem('user')
+        localStorage.removeItem('userId')
+        return false
+    }
+}
+
+export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalProps) {
+    const [mode, setMode] = useState<'login' | 'register'>(defaultMode)
+
+    // Vérification du token à l'ouverture du modal
+    useEffect(() => {
+        if (isOpen) {
+            verifyToken()
+        }
+    }, [isOpen])
+
+    // Gestion de la touche Escape
+    useEffect(() => {
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose()
+            }
+        }
+
+        if (isOpen) {
+            document.addEventListener('keydown', handleEscape)
+        }
+
+        return () => {
+            document.removeEventListener('keydown', handleEscape)
+        }
+    }, [isOpen, onClose])
 
     if (!isOpen) return null
 
+    // Gestion du clic en dehors du modal
+    const handleBackdropClick = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget) {
+            onClose()
+        }
+    }
+
     return (
-        <div
-            className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
-            onClick={onClose}
+        <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={handleBackdropClick}
         >
-            <div
-                className="w-full max-w-md h-[550px] relative rounded-2xl overflow-hidden flex items-center justify-center bg-[#2a2a2a]"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <button
+            <div className="bg-neutral-900 rounded-2xl w-full max-w-md relative" onClick={e => e.stopPropagation()}>
+                <button 
                     onClick={onClose}
-                    className="absolute top-6 right-6 text-white hover:text-gray-300 text-xl z-10"
+                    className="absolute top-4 right-4 text-gray-400 hover:text-white z-50"
                 >
                     ✕
                 </button>
-
-                {/* Contenu du formulaire */}
-                {mode === "login" ? (
-                    <LoginForm onModeChange={setMode} />
+                
+                {mode === 'login' ? (
+                    <LoginForm onModeChange={() => setMode('register')} onSuccess={onClose} />
                 ) : (
-                    <RegisterForm onModeChange={setMode} />
+                    <RegisterForm onModeChange={() => setMode('login')} onSuccess={onClose} />
                 )}
             </div>
         </div>

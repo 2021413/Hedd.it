@@ -23,6 +23,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState<User | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const menuWidth = 240;
     const strokeLeft = menuOpen ? menuWidth + 50 : 50;
     const burgerSize = 64;
@@ -32,10 +33,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         // Vérifier l'authentification au chargement
         const checkAuth = async () => {
+            setIsLoading(true);
             const token = localStorage.getItem('jwt');
             if (!token) {
                 setIsAuthenticated(false);
                 setUser(null);
+                setIsLoading(false);
                 return;
             }
 
@@ -51,6 +54,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     localStorage.removeItem('user');
                     setIsAuthenticated(false);
                     setUser(null);
+                    setIsLoading(false);
                     return;
                 }
 
@@ -69,15 +73,24 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 localStorage.setItem('user', JSON.stringify(userToStore));
                 setUser(userToStore);
                 setIsAuthenticated(true);
+                setIsLoading(false);
             } catch (error) {
                 console.error('Erreur lors de la vérification du token:', error);
                 setIsAuthenticated(false);
                 setUser(null);
+                setIsLoading(false);
             }
         };
 
         // Vérifier l'auth au montage
         checkAuth();
+
+        // Écouter l'événement auth-change
+        const handleAuthChange = () => {
+            checkAuth();
+        };
+
+        window.addEventListener('auth-change', handleAuthChange);
 
         // Écouter les changements de storage pour la synchronisation multi-onglets
         const handleStorageChange = (e: StorageEvent) => {
@@ -92,6 +105,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         const interval = setInterval(checkAuth, 5 * 60 * 1000);
 
         return () => {
+            window.removeEventListener('auth-change', handleAuthChange);
             window.removeEventListener('storage', handleStorageChange);
             clearInterval(interval);
         };
@@ -120,51 +134,59 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <html lang="fr">
             <body>
                 <div className="bg-[#1E1E1E] text-white min-h-screen relative">
-                    <div className="fixed top-0 left-0 right-0 z-[100]">
-                        {isAuthenticated ? (
-                            <Header 
-                                showBurgerButton={isMobile} 
+                    {isLoading ? (
+                        <div className="flex items-center justify-center min-h-screen">
+                            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="fixed top-0 left-0 right-0 z-[100]">
+                                {isAuthenticated ? (
+                                    <Header 
+                                        showBurgerButton={isMobile} 
+                                        onBurgerClick={() => setMenuOpen(!menuOpen)}
+                                        isMenuOpen={menuOpen}
+                                        user={user}
+                                    />
+                                ) : (
+                                    <LockedHeader 
+                                        showBurgerButton={isMobile} 
+                                        onBurgerClick={() => setMenuOpen(!menuOpen)}
+                                        isMenuOpen={menuOpen}
+                                        user={user}
+                                    />
+                                )}
+                            </div>
+                            
+                            <Sidebar 
+                                isOpen={menuOpen} 
+                                width={menuWidth} 
+                                strokeLeft={strokeLeft} 
+                                showBurgerButton={isMobile}
                                 onBurgerClick={() => setMenuOpen(!menuOpen)}
                                 isMenuOpen={menuOpen}
                                 user={user}
                             />
-                        ) : (
-                            <LockedHeader 
-                                showBurgerButton={isMobile} 
-                                onBurgerClick={() => setMenuOpen(!menuOpen)}
-                                isMenuOpen={menuOpen}
-                                user={user}
-                            />
-                        )}
-                    </div>
-                    
-                    <Sidebar 
-                        isOpen={menuOpen} 
-                        width={menuWidth} 
-                        strokeLeft={strokeLeft} 
-                        showBurgerButton={isMobile}
-                        onBurgerClick={() => setMenuOpen(!menuOpen)}
-                        isMenuOpen={menuOpen}
-                        user={user}
-                    />
-                    
-                    <main className="p-4 relative min-h-[calc(100vh-56px)] pt-[76px]" style={mainStyle}>
-                        {!isMobile && (
-                            <div
-                                className="fixed w-[2px] bg-[#003E1C] transition-all duration-300"
-                                style={{ left: strokeLeft, top: 0, height: '100vh', zIndex: 40 }}
-                            ></div>
-                        )}
-                        {!isMobile && (
-                            <BurgerButton
-                                left={`calc(${strokeLeft}px - ${burgerSize / 2 - 1}px)`}
-                                top={burgerTop + 56}
-                                onClick={() => setMenuOpen((v) => !v)}
-                                isOpen={menuOpen}
-                            />
-                        )}
-                        {children}
-                    </main>
+                            
+                            <main className="p-4 relative min-h-[calc(100vh-56px)] pt-[76px]" style={mainStyle}>
+                                {!isMobile && (
+                                    <div
+                                        className="fixed w-[2px] bg-[#003E1C] transition-all duration-300"
+                                        style={{ left: strokeLeft, top: 0, height: '100vh', zIndex: 40 }}
+                                    ></div>
+                                )}
+                                {!isMobile && (
+                                    <BurgerButton
+                                        left={`calc(${strokeLeft}px - ${burgerSize / 2 - 1}px)`}
+                                        top={burgerTop + 56}
+                                        onClick={() => setMenuOpen((v) => !v)}
+                                        isOpen={menuOpen}
+                                    />
+                                )}
+                                {children}
+                            </main>
+                        </>
+                    )}
                 </div>
                 <Toaster position="bottom-right" />
             </body>

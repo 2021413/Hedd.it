@@ -7,6 +7,8 @@ import CommunityRules from '@/components/community/CommunityRules';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+import { formatRelativeTime } from '@/utils/formatRelativeTime';
+import AuthModal from '@/components/auth/AuthModal';
 
 // Types
 interface Post {
@@ -78,36 +80,70 @@ export default function CommunityClient({ community: initialCommunity }: Communi
   const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const [isModerator, setIsModerator] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState('https://picsum.photos/200/200');
   const [bannerUrl, setBannerUrl] = useState('https://picsum.photos/1000/300');
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Initial load effect
   useEffect(() => {
-    try {
-      if (initialCommunity) {
-        setCommunity(initialCommunity);
-        
-        // Update URL states based on community data
-        updateImageUrls(initialCommunity);
-      } else {
-        setError('Données de communauté non fournies');
+    const checkAuthAndLoadData = async () => {
+      try {
+        const token = localStorage.getItem('jwt');
+        const userId = localStorage.getItem('userId');
+
+        // Vérification du token
+        if (token) {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/users/me`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (!response.ok) {
+            // Token invalide, on nettoie le localStorage
+            localStorage.removeItem('jwt');
+            localStorage.removeItem('user');
+            localStorage.removeItem('userId');
+            setCurrentUserId(null);
+            setIsAuthenticated(false);
+            setIsMember(false);
+            setIsModerator(false);
+          } else {
+            setCurrentUserId(userId);
+            setIsAuthenticated(true);
+          }
+        } else {
+          setCurrentUserId(null);
+          setIsAuthenticated(false);
+          setIsMember(false);
+          setIsModerator(false);
+        }
+
+        if (initialCommunity) {
+          setCommunity(initialCommunity);
+          updateImageUrls(initialCommunity);
+        } else {
+          setError('Données de communauté non fournies');
+        }
+      } catch (e) {
+        setError('Erreur lors du chargement des données');
+        setIsAuthenticated(false);
+        setCurrentUserId(null);
+        setIsMember(false);
+        setIsModerator(false);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (e) {
-      setError('Erreur lors du chargement des données');
-    } finally {
-      setIsLoading(false);
-    }
+    };
+
+    checkAuthAndLoadData();
   }, [initialCommunity]);
 
   useEffect(() => {
-    const userId = localStorage.getItem('userId');
-    setCurrentUserId(userId);
-  }, []);
-
-  useEffect(() => {
-    if (community && currentUserId) {
+    if (community && currentUserId && isAuthenticated) {
       const isCreator = community.creator?.id === parseInt(currentUserId);
       const isMemberOfCommunity = community.members?.some((member) => member.id === parseInt(currentUserId)) || false;
       setIsMember(isCreator || isMemberOfCommunity);
@@ -115,8 +151,11 @@ export default function CommunityClient({ community: initialCommunity }: Communi
       if (community.moderators) {
         setIsModerator(community.moderators.some((mod) => mod.id === parseInt(currentUserId)));
       }
+    } else {
+      setIsMember(false);
+      setIsModerator(false);
     }
-  }, [community, currentUserId]);
+  }, [community, currentUserId, isAuthenticated]);
 
   useEffect(() => {
     setIsMobile(window.innerWidth <= 768);
@@ -153,9 +192,18 @@ export default function CommunityClient({ community: initialCommunity }: Communi
     }
   };
 
+  const handleCreatePost = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+    router.push(`/create-post?community=${community?.name}`);
+  };
+
   const handleJoinCommunity = async () => {
     if (!currentUserId || !community) {
-      router.push('/login');
+      setShowAuthModal(true);
       return;
     }
 
@@ -253,7 +301,7 @@ export default function CommunityClient({ community: initialCommunity }: Communi
   }
 
   const posts = community.posts || [];
-  const totalMembers = (community.members?.length || 0) + 1; // +1 for the creator
+  const totalMembers = (community.members?.length || 0) + 1;
 
   const AboutSection = () => {
     return (
@@ -287,95 +335,58 @@ export default function CommunityClient({ community: initialCommunity }: Communi
   };
 
   return (
-    <div className={`flex justify-center p-4 ${isMobile ? 'flex-col' : ''}`}>
-      <div className="w-full max-w-[1000px]">
-        {/* Community banner and info */}
-        <div className="relative mb-8">
-          <div 
-            className="w-full h-36 overflow-hidden rounded-2xl bg-cover bg-center" 
-            style={{ backgroundImage: `url(${bannerUrl})` }}
-          ></div>
-          <div className="absolute -bottom-14 left-8">
-            <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#1E1E1E]">
-              <img 
-                src={avatarUrl}
-                alt={community.name} 
-                className="w-full h-full object-cover" 
-                loading="eager" 
-              />
+    <>
+      <div className={`flex justify-center p-4 ${isMobile ? 'flex-col' : ''}`}>
+        <div className="w-full max-w-[1000px]">
+          <div className="relative mb-8">
+            <div 
+              className="w-full h-36 overflow-hidden rounded-2xl bg-cover bg-center" 
+              style={{ backgroundImage: `url(${bannerUrl})` }}
+            ></div>
+            <div className="absolute -bottom-14 left-8">
+              <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#1E1E1E]">
+                <img 
+                  src={avatarUrl}
+                  alt={community.name} 
+                  className="w-full h-full object-cover" 
+                  loading="eager" 
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Community text and buttons */}
-        <div className={`flex justify-between items-center mb-4 ${isMobile ? 'flex-col items-start' : ''}`}>
-          <div className="flex items-center">
-            <h1 className={`text-2xl font-bold text-white ${isMobile ? 'ml-0 mt-[-15px] mb-4' : 'ml-40 -mt-8'}`}>
-              h/{community.name}
-            </h1>
-          </div>
-          <div className={`flex gap-2 ${isMobile ? 'flex-row w-full justify-end mt-2' : ''}`}>
-            {currentUserId && (
-              <Link href={`/create-post?community=${community.name}`} className="inline-flex items-center border border-green-700 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors">
+          <div className={`flex justify-between items-center mb-4 ${isMobile ? 'flex-col items-start' : ''}`}>
+            <div className="flex items-center">
+              <h1 className={`text-2xl font-bold text-white ${isMobile ? 'ml-0 mt-[-15px] mb-4' : 'ml-40 -mt-8'}`}>
+                h/{community.name}
+              </h1>
+            </div>
+            <div className={`flex gap-2 ${isMobile ? 'flex-row w-full justify-end mt-2' : ''}`}>
+              <Link 
+                href="#" 
+                onClick={handleCreatePost}
+                className="inline-flex items-center border border-green-700 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
+              >
                 <FiPlus className="mr-2" /> Créer un post
               </Link>
-            )}
-            {currentUserId && (
-              <button 
-                onClick={handleJoinCommunity}
-                className={`${isMember ? 'bg-neutral-700 hover:bg-neutral-600' : 'bg-green-700 hover:bg-green-800'} transition-colors text-white px-6 py-2 rounded-lg font-medium flex items-center`}
-              >
-                <span>{isMember ? 'Quitter' : 'Rejoindre'}</span>
-              </button>
-            )}
-            {(isModerator || (currentUserId && parseInt(currentUserId) === community.creator.id)) && (
-              <Link href={`/community/${community.name}/settings`} className="p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 transition-colors">
-                <FiMoreHorizontal size={24} />
-              </Link>
-            )}
-          </div>
-        </div>
-
-        {/* Reorder sections for mobile */}
-        {isMobile && (
-          <div className="w-full space-y-6 mb-8">
-            <AboutSection />
-            <CommunityRules 
-              communityName={community.name} 
-              rules={community.rules || []}
-            />
-          </div>
-        )}
-
-        <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-8`}>
-          {/* Main column - Posts */}
-          <div className="flex-grow">
-            <div className="space-y-6">
-              {posts.map((post) => (
-                <PostCard
-                  key={post.id}
-                  subName={community.name}
-                  timeAgo={new Date(post.createdAt).toLocaleDateString('fr-FR')}
-                  title={post.title}
-                  imageUrl={post.media && post.media.length > 0
-                    ? `${process.env.NEXT_PUBLIC_STRAPI_URL}${post.media[0].url}`
-                    : undefined}
-                  postUrl={`/post/${post.id}`}
-                  subAvatar={avatarUrl}
-                />
-              ))}
+              {currentUserId && (
+                <button 
+                  onClick={handleJoinCommunity}
+                  className={`${isMember ? 'bg-neutral-700 hover:bg-neutral-600' : 'bg-green-700 hover:bg-green-800'} transition-colors text-white px-6 py-2 rounded-lg font-medium flex items-center`}
+                >
+                  <span>{isMember ? 'Quitter' : 'Rejoindre'}</span>
+                </button>
+              )}
+              {(isModerator || (currentUserId && parseInt(currentUserId) === community.creator.id)) && (
+                <Link href={`/community/${community.name}/settings`} className="p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 transition-colors">
+                  <FiMoreHorizontal size={24} />
+                </Link>
+              )}
             </div>
-            {posts.length === 0 && (
-              <div className="text-center py-20 bg-neutral-900 rounded-2xl">
-                <FiInfo size={48} className="mx-auto mb-4 text-gray-500" />
-                <p className="text-xl text-gray-400">Aucune publication dans cette communauté pour le moment</p>
-              </div>
-            )}
           </div>
 
-          {/* Sidebar column - Info */}
-          {!isMobile && (
-            <div className="w-full md:w-80 space-y-6">
+          {isMobile && (
+            <div className="w-full space-y-6 mb-8">
               <AboutSection />
               <CommunityRules 
                 communityName={community.name} 
@@ -383,8 +394,50 @@ export default function CommunityClient({ community: initialCommunity }: Communi
               />
             </div>
           )}
+
+          <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-8`}>
+            <div className="flex-grow">
+              <div className="space-y-6">
+                {posts.map((post) => (
+                  <PostCard
+                    key={post.id}
+                    subName={community.name}
+                    timeAgo=""
+                    title={post.title}
+                    imageUrl={post.media && post.media.length > 0 
+                      ? `${process.env.NEXT_PUBLIC_STRAPI_URL}${post.media[0].url}` 
+                      : undefined}
+                    postUrl={`/post/${post.id}`}
+                    subAvatar={avatarUrl}
+                    createdAt={post.createdAt}
+                  />
+                ))}
+              </div>
+              {posts.length === 0 && (
+                <div className="text-center py-20 bg-neutral-900 rounded-2xl">
+                  <FiInfo size={48} className="mx-auto mb-4 text-gray-500" />
+                  <p className="text-xl text-gray-400">Aucune publication dans cette communauté pour le moment</p>
+                </div>
+              )}
+            </div>
+
+            {!isMobile && (
+              <div className="w-full md:w-80 space-y-6">
+                <AboutSection />
+                <CommunityRules 
+                  communityName={community.name} 
+                  rules={community.rules || []}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
+    </>
   );
 } 

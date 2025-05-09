@@ -16,16 +16,18 @@ interface PostFormProps {
     selectedSub: string;
   }) => void;
   subreddits?: Subreddit[];
+  defaultSubreddit?: string;
 }
 
 export default function PostForm({ 
   onSubmit,
-  subreddits = []
+  subreddits = [],
+  defaultSubreddit = ""
 }: PostFormProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [selectedSub, setSelectedSub] = useState("");
+  const [selectedSub, setSelectedSub] = useState(defaultSubreddit);
   const [isUploading, setIsUploading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 

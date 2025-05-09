@@ -146,11 +146,12 @@ export default function HomePage() {
             <React.Fragment key={post.id}>
               <PostCard 
                 subName={communityName}
-                timeAgo={formatTimeAgo(post.createdAt)}
+                timeAgo=""
                 title={post.title}
                 imageUrl={mediaUrl || undefined}
                 postUrl={`${window.location.origin}/post/${post.id}`}
                 subAvatar={communityAvatar}
+                createdAt={post.createdAt}
               />
               {idx < posts.length - 1 && (
                 <div className="w-full h-[2px] bg-[#003E1C] my-2 max-w-2xl mx-auto rounded"></div>

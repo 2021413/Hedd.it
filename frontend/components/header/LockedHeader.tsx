@@ -25,7 +25,9 @@ export default function LockedHeader({ showBurgerButton, onBurgerClick, isMenuOp
             <header className="w-full bg-[#1E1E1E] text-white px-2 sm:px-4 py-4 flex items-center justify-between shadow border-b-2 border-[#003E1C]">
                 <div className="flex items-center">
                     {showBurgerButton && <FiMenu size={24} className="mr-4 cursor-pointer" onClick={onBurgerClick} />}
-                    <h1 className="text-xl sm:text-2xl font-bold text-[#75BB99]">Hedd.it</h1>
+                    <Link href="/" className="hover:opacity-80 transition-opacity">
+                        <h1 className="text-xl sm:text-2xl font-bold text-[#75BB99]">Hedd.it</h1>
+                    </Link>
                 </div>
                 <div className="flex-1 flex justify-center mx-2">
                     <div className="relative">

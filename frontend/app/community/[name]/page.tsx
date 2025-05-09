@@ -8,7 +8,7 @@ async function getData(name: string) {
   const apiUrl = process.env.STRAPI_URL || 'http://127.0.0.1:1337';
   
   try {
-    const url = `${apiUrl}/api/communities?filters[name][$eq]=${encodeURIComponent(decodeURIComponent(name))}&populate=*`;
+    const url = `${apiUrl}/api/communities?filters[name][$eq]=${encodeURIComponent(decodeURIComponent(name))}&populate[0]=posts.media&populate[1]=avatar&populate[2]=banner&populate[3]=creator&populate[4]=members&populate[5]=moderators`;
 
     const response = await fetch(
       url,
@@ -34,69 +34,22 @@ async function getData(name: string) {
       return null;
     }
 
-    // Different approach to data extraction
     const community = data.data[0];
-    const rawData = community.attributes || community; // Handle both possible formats
+    const rawData = community.attributes || community;
 
-    // Create processed data with safe access and defaults
     const processedData = {
       id: community.id,
       documentId: (community.documentId || community.id).toString(),
       name: rawData.name || 'Sans nom',
       description: rawData.description || '',
       isPrivate: typeof rawData.isPrivate === 'boolean' ? rawData.isPrivate : false,
-      
-      // Handle different avatar/banner structures
-      avatar: rawData.avatar?.data?.attributes?.url 
-        ? { url: rawData.avatar.data.attributes.url, formats: rawData.avatar.data.attributes.formats }
-        : rawData.avatar?.url 
-          ? { url: rawData.avatar.url, formats: rawData.avatar.formats }
-          : null,
-          
-      banner: rawData.banner?.data?.attributes?.url 
-        ? { url: rawData.banner.data.attributes.url, formats: rawData.banner.data.attributes.formats }
-        : rawData.banner?.url 
-          ? { url: rawData.banner.url, formats: rawData.banner.formats }
-          : null,
-          
+      avatar: rawData.avatar,
+      banner: rawData.banner,
       createdAt: rawData.createdAt || new Date().toISOString(),
-      
-      // Handle posts with safe access
-      posts: Array.isArray(rawData.posts?.data) 
-        ? rawData.posts.data.map((post: any) => ({
-            id: post.id,
-            title: post.attributes.title || 'Sans titre',
-            content: post.attributes.content || '',
-            createdAt: post.attributes.createdAt || new Date().toISOString(),
-            media: Array.isArray(post.attributes.media?.data)
-              ? post.attributes.media.data.map((media: any) => ({
-                  url: media.attributes.url
-                }))
-              : []
-          }))
-        : [],
-        
-      // Handle members and moderators
-      members: Array.isArray(rawData.members?.data)
-        ? rawData.members.data.map((member: any) => ({
-            id: parseInt(member.id)
-          }))
-        : [],
-        
-      moderators: Array.isArray(rawData.moderators?.data)
-        ? rawData.moderators.data.map((mod: any) => ({
-            id: parseInt(mod.id)
-          }))
-        : [],
-        
-      // Handle creator
-      creator: rawData.creator?.data
-        ? {
-            id: parseInt(rawData.creator.data.id),
-            username: rawData.creator.data.attributes?.username || 'Utilisateur'
-          }
-        : { id: 0, username: 'Inconnu' },
-        
+      posts: rawData.posts || [],
+      members: rawData.members || [],
+      moderators: rawData.moderators || [],
+      creator: rawData.creator || { id: 0, username: 'Inconnu' },
       rules: rawData.rules || null,
       slug: rawData.slug || null
     };

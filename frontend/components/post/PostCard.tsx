@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FiThumbsUp, FiThumbsDown, FiMessageCircle, FiLink } from "react-icons/fi";
 import { useRouter } from "next/navigation";
+import { formatRelativeTime } from '@/utils/formatRelativeTime';
 
 interface PostCardProps {
   subName: string;
@@ -11,11 +12,14 @@ interface PostCardProps {
   imageUrl?: string;
   postUrl: string;
   subAvatar: string;
+  createdAt?: string;
 }
 
-export default function PostCard({ subName, timeAgo, title, imageUrl, postUrl, subAvatar }: PostCardProps) {
+export default function PostCard({ subName, timeAgo, title, imageUrl, postUrl, subAvatar, createdAt }: PostCardProps) {
   const [copied, setCopied] = useState(false);
   const router = useRouter();
+
+  const displayTime = createdAt ? formatRelativeTime(new Date(createdAt)) : timeAgo;
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -52,7 +56,7 @@ export default function PostCard({ subName, timeAgo, title, imageUrl, postUrl, s
         >
           h/{subName}
         </span>
-        <span className="text-base text-gray-400">• il y a {timeAgo}</span>
+        <span className="text-base text-gray-400">• {displayTime}</span>
       </div>
       <h2 className="text-2xl font-extrabold mb-5 leading-tight">{title}</h2>
       <div className="rounded-xl overflow-hidden mb-5">
