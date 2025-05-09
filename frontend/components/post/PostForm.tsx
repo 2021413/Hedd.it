@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiImage, FiX } from "react-icons/fi";
 import Link from "next/link";
 
@@ -30,6 +30,12 @@ export default function PostForm({
   const [selectedSub, setSelectedSub] = useState(defaultSubreddit);
   const [isUploading, setIsUploading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (defaultSubreddit) {
+      setSelectedSub(defaultSubreddit);
+    }
+  }, [defaultSubreddit]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

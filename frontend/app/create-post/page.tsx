@@ -52,7 +52,7 @@ async function uploadImage(base64Image: string, token: string): Promise<number |
 export default function CreatePostPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const communityName = searchParams.get('community');
+  const communityId = searchParams.get('community');
   
   const [communities, setCommunities] = useState<{
     id: number;
@@ -66,13 +66,10 @@ export default function CreatePostPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
-    if (communityName && communities.length > 0) {
-      const community = communities.find(c => c.name === communityName);
-      if (community) {
-        setSelectedCommunity(String(community.id));
-      }
+    if (communityId && communities.length > 0) {
+      setSelectedCommunity(communityId);
     }
-  }, [communityName, communities]);
+  }, [communityId, communities]);
 
   // Récupérer la liste des communautés depuis l'API
   useEffect(() => {
@@ -200,15 +197,35 @@ export default function CreatePostPage() {
         return;
       }
 
+      // Vérifier si l'utilisateur est membre de la communauté
+      const communityId = parseInt(data.selectedSub, 10);
+      const selectedCommunity = communities.find(c => c.id === communityId);
+      
+      if (!selectedCommunity) {
+        throw new Error("Communauté non trouvée");
+      }
+
+      // Vérifier si l'utilisateur est membre de la communauté sélectionnée
+      const isMember = await fetch(
+        `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/communities/${communityId}?populate=members`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          }
+        }
+      ).then(res => res.json())
+        .then(data => {
+          const members = data.data?.attributes?.members?.data || [];
+          return members.some((member: any) => member.id === parseInt(userId));
+        });
+
+      if (!isMember) {
+        throw new Error("Vous devez être membre de la communauté pour créer un post");
+      }
+
       let mediaId = null;
       if (data.selectedImage) {
         mediaId = await uploadImage(data.selectedImage, token);
-      }
-
-      const communityId = parseInt(data.selectedSub, 10);
-      
-      if (isNaN(communityId)) {
-        throw new Error("ID de communauté invalide");
       }
 
       const postData: PostData = {

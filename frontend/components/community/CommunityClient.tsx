@@ -198,7 +198,11 @@ export default function CommunityClient({ community: initialCommunity }: Communi
       setShowAuthModal(true);
       return;
     }
-    router.push(`/create-post?community=${community?.name}`);
+    if (!isMember) {
+      toast.error("Vous devez être membre de la communauté pour créer un post");
+      return;
+    }
+    router.push(`/create-post?community=${community?.id}`);
   };
 
   const handleJoinCommunity = async () => {
