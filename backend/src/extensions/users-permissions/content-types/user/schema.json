@@ -101,13 +101,13 @@
       "type": "relation",
       "relation": "manyToMany",
       "target": "api::community.community",
-      "mappedBy": "members"
+      "inversedBy": "members"
     },
     "moderatedCommunities": {
       "type": "relation",
       "relation": "manyToMany",
       "target": "api::community.community",
-      "mappedBy": "moderators"
+      "inversedBy": "moderators"
     },
     "createdCommunities": {
       "type": "relation",

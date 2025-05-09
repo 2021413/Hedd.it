@@ -4,22 +4,109 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FiArrowLeft } from "react-icons/fi";
 import CommunityForm from "@/components/subreddit/CommunityForm";
+import { toast } from "react-hot-toast";
+
+async function uploadImage(base64Image: string, token: string): Promise<number | null> {
+  if (!base64Image) return null;
+
+  try {
+    // Convertir base64 en Blob
+    const base64Response = await fetch(base64Image);
+    const blob = await base64Response.blob();
+
+    // Créer un FormData et ajouter le fichier
+    const formData = new FormData();
+    formData.append('files', blob);
+
+    // Upload vers Strapi
+    const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error('Erreur lors de l\'upload de l\'image');
+    }
+
+    const uploadResult = await uploadResponse.json();
+    return uploadResult[0].id;
+  } catch (error) {
+    return null;
+  }
+}
 
 export default function CreateCommunityPage() {
   const router = useRouter();
   
-  const handleSubmit = (data: {
+  const handleSubmit = async (data: {
     name: string;
     description: string;
     avatar: string | null;
     banner: string | null;
     visibility: string;
   }) => {
-    // Here you would implement the logic to send the community data to the backend
-    console.log(data);
-    
-    // Redirect to the home page or the new community page
-    router.push("/");
+    try {
+      const token = localStorage.getItem('jwt');
+      const userId = localStorage.getItem('userId');
+      
+      if (!token || !userId) {
+        toast.error('Vous devez être connecté pour créer une communauté');
+        router.push('/login');
+        return;
+      }
+
+      // Upload des images
+      const [avatarId, bannerId] = await Promise.all([
+        data.avatar ? uploadImage(data.avatar, token) : Promise.resolve(null),
+        data.banner ? uploadImage(data.banner, token) : Promise.resolve(null),
+      ]);
+
+      // Première étape : créer la communauté avec le créateur
+      const initialRequestBody = {
+        data: {
+          name: data.name,
+          description: data.description,
+          avatar: avatarId,
+          banner: bannerId,
+          isPrivate: data.visibility === "private",
+          creator: {
+            set: [parseInt(userId)]
+          },
+          moderators: {
+            set: []
+          },
+          members: {
+            set: []
+          }
+        }
+      };
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/communities`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(initialRequestBody),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Erreur lors de la création de la communauté');
+      }
+
+      const result = await response.json();
+      toast.success('Communauté créée avec succès !');
+      
+      // Accès au slug via le nom de la communauté
+      const communityName = result.data.name;
+      router.push(`/community/${communityName}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Une erreur est survenue lors de la création de la communauté');
+    }
   };
 
   return (

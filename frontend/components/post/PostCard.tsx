@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from "react";
 import { FiThumbsUp, FiThumbsDown, FiMessageCircle, FiLink } from "react-icons/fi";
 import { useRouter } from "next/navigation";
@@ -6,9 +8,9 @@ interface PostCardProps {
   subName: string;
   timeAgo: string;
   title: string;
-  imageUrl: string;
+  imageUrl?: string;
   postUrl: string;
-  subAvatar?: string;
+  subAvatar: string;
 }
 
 export default function PostCard({ subName, timeAgo, title, imageUrl, postUrl, subAvatar }: PostCardProps) {

@@ -55,6 +55,7 @@ export default function LoginForm({ onModeChange }: LoginFormProps) {
             // Stockage du token dans le localStorage
             localStorage.setItem('jwt', data.jwt)
             localStorage.setItem('user', JSON.stringify(data.user))
+            localStorage.setItem('userId', data.user.id.toString())
             
             // Redirection ou mise à jour de l'état de l'application
             window.location.href = '/' // ou utilisez un router pour la navigation

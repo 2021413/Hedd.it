@@ -6,6 +6,7 @@ import LockedHeader from "../components/header/LockedHeader";
 import BurgerButton from "../components/ui/BurgerButton";
 import Sidebar from "../components/sidebar/Sidebar";
 import { FiMenu } from 'react-icons/fi';
+import { Toaster } from 'react-hot-toast';
 
 interface User {
     id: number;
@@ -165,6 +166,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         {children}
                     </main>
                 </div>
+                <Toaster position="bottom-right" />
             </body>
         </html>
     );
