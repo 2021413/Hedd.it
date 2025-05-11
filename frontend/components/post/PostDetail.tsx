@@ -7,6 +7,8 @@ import CommentThread, { Comment } from "@/components/comments/CommentThread";
 import CommentForm from "@/components/comments/CommentForm";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
+import LoginForm from "../auth/LoginForm";
+import { useVote } from '@/hooks/useVote';
 
 interface PostDetailProps {
   postId: number;
@@ -116,86 +118,120 @@ export default function PostDetail({ postId }: PostDetailProps) {
   const [commentTree, setCommentTree] = useState<Comment[]>([]);
   const [copied, setCopied] = useState(false);
   const [availablePosts, setAvailablePosts] = useState<{id: number, title: string}[]>([]);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [voteAction, setVoteAction] = useState<'upvote' | 'downvote' | null>(null);
+  const [initialVoteState, setInitialVoteState] = useState({
+    voteScore: 0,
+    hasUpvoted: false,
+    hasDownvoted: false
+  });
   
-  useEffect(() => {
-    const fetchPost = async () => {
-      try {
-        if (isNaN(postId)) {
-          throw new Error("ID de post invalide");
-        }
-        
-        const url = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts/${postId}`;
-        const token = localStorage.getItem('jwt');
-        
-        const response = await fetch(url, { 
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          cache: 'no-store'
-        });
-        
-        if (!response.ok) {
-          if (response.status === 404) {
-            const availablePostsResponse = await fetch(
-              `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts?sort=id:desc&pagination[pageSize]=5`, 
-              {
-                method: 'GET',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                }
+  const fetchPost = async () => {
+    try {
+      if (isNaN(postId)) {
+        throw new Error("ID de post invalide");
+      }
+      
+      const url = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts/${postId}`;
+      const token = localStorage.getItem('jwt');
+      
+      const response = await fetch(url, { 
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        cache: 'no-store'
+      });
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          const availablePostsResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts?sort=id:desc&pagination[pageSize]=5`, 
+            {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
               }
-            );
-            
-            if (availablePostsResponse.ok) {
-              const result = await availablePostsResponse.json();
-              setAvailablePosts(result.data.map((p: PostData) => ({
-                id: p.id,
-                title: p.attributes.title
-              })));
             }
-            
-            throw new Error(`Le post avec l'ID ${postId} n'existe pas`);
+          );
+          
+          if (availablePostsResponse.ok) {
+            const result = await availablePostsResponse.json();
+            setAvailablePosts(result.data.map((p: PostData) => ({
+              id: p.id,
+              title: p.attributes.title
+            })));
           }
           
-          throw new Error(`Impossible de charger le post: ${response.status} ${response.statusText}`);
+          throw new Error(`Le post avec l'ID ${postId} n'existe pas`);
         }
         
-        const result = await response.json();
-        
-        if (!result?.data?.attributes) {
-          throw new Error("Structure de données invalide reçue du serveur");
-        }
-        
-        setPost(result.data);
-        
-        // Récupération des commentaires via la nouvelle route thread
-        const commentsUrl = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/comments/thread?post=${postId}`;
-        const commentsResponse = await fetch(commentsUrl, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          cache: 'no-store'
-        });
-        
-        if (commentsResponse.ok) {
-          const commentTree = await commentsResponse.json();
-          // L'API renvoie directement l'arbre
-          const adaptedComments = commentTree.map((comment: any) => adaptCommentFromApi(comment));
-          setCommentTree(adaptedComments);
-        }
-      } catch (error) {
-        setError(error instanceof Error ? error.message : "Une erreur est survenue");
-        toast.error("Impossible de charger le post");
-      } finally {
-        setLoading(false);
+        throw new Error(`Impossible de charger le post: ${response.status} ${response.statusText}`);
       }
-    };
-    
+      
+      const result = await response.json();
+      
+      if (!result?.data?.attributes) {
+        throw new Error("Structure de données invalide reçue du serveur");
+      }
+      
+      console.log('API Response:', result.data);
+      
+      setPost(result.data);
+
+      // Mettre à jour l'état initial des votes
+      const userId = token ? JSON.parse(atob(token.split('.')[1])).id : null;
+      const upvotes = result.data.attributes.upvotes || [];
+      const downvotes = result.data.attributes.downvotes || [];
+      
+      const hasUpvoted = userId ? upvotes.some((vote: any) => vote.id === userId) : false;
+      const hasDownvoted = userId ? downvotes.some((vote: any) => vote.id === userId) : false;
+      
+      setInitialVoteState({
+        voteScore: upvotes.length - downvotes.length,
+        hasUpvoted,
+        hasDownvoted
+      });
+      
+      // Récupération des commentaires via la nouvelle route thread
+      const commentsUrl = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/comments/thread?post=${postId}`;
+      const commentsResponse = await fetch(commentsUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        cache: 'no-store'
+      });
+      
+      if (commentsResponse.ok) {
+        const commentTree = await commentsResponse.json();
+        // L'API renvoie directement l'arbre
+        const adaptedComments = commentTree.map((comment: any) => adaptCommentFromApi(comment));
+        setCommentTree(adaptedComments);
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Une erreur est survenue");
+      toast.error("Impossible de charger le post");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const { voteScore, hasUpvoted, hasDownvoted, isVoting, handleVote } = useVote({
+    postId,
+    initialVoteScore: initialVoteState.voteScore,
+    initialHasUpvoted: initialVoteState.hasUpvoted,
+    initialHasDownvoted: initialVoteState.hasDownvoted,
+    onVoteSuccess: () => {
+      // Rafraîchir les données du post après un vote réussi
+      fetchPost();
+    }
+  });
+
+  useEffect(() => {
     fetchPost();
   }, [postId]);
   
@@ -245,6 +281,29 @@ export default function PostDetail({ postId }: PostDetailProps) {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+  
+  const handleVoteClick = async (action: 'upvote' | 'downvote') => {
+    const token = localStorage.getItem('jwt');
+    if (!token) {
+      setVoteAction(action);
+      setShowLoginModal(true);
+      return;
+    }
+
+    try {
+      await handleVote(action);
+    } catch (error) {
+      console.error('Erreur dans handleVote:', error);
+    }
+  };
+
+  const handleLoginSuccess = () => {
+    setShowLoginModal(false);
+    if (voteAction) {
+      handleVoteClick(voteAction);
+      setVoteAction(null);
+    }
   };
   
   if (loading) {
@@ -313,10 +372,6 @@ export default function PostDetail({ postId }: PostDetailProps) {
     }
   }
   
-  const upvoteCount = post.attributes.upvotes?.length || 0;
-  const downvoteCount = post.attributes.downvotes?.length || 0;
-  const voteScore = upvoteCount - downvoteCount;
-
   return (
     <>
       <div className="bg-transparent hover:bg-neutral-900 transition-colors duration-200 text-white p-8 rounded-2xl shadow-lg relative">
@@ -355,15 +410,26 @@ export default function PostDetail({ postId }: PostDetailProps) {
 
         <div className="flex items-center justify-between">
           <div className="flex space-x-6">
-            <button className="hover:text-white flex items-center gap-1" aria-label="Like">
+            <button 
+              className={`flex items-center gap-1 transition-colors duration-200 ${
+                hasUpvoted ? 'text-green-500' : 'text-gray-300 hover:text-green-500'
+              } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={() => handleVoteClick('upvote')}
+              disabled={isVoting}
+              aria-label="Like"
+            >
               <FiThumbsUp size={28} />
-              {voteScore > 0 && <span>{voteScore}</span>}
+              {voteScore > 0 && <span className="text-green-500">{voteScore}</span>}
             </button>
-            <button className="hover:text-white" aria-label="Dislike">
+            <button 
+              className={`transition-colors duration-200 ${
+                hasDownvoted ? 'text-red-500' : 'text-gray-300 hover:text-red-500'
+              } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={() => handleVoteClick('downvote')}
+              disabled={isVoting}
+              aria-label="Dislike"
+            >
               <FiThumbsDown size={28} />
-            </button>
-            <button className="hover:text-white" aria-label="Comment">
-              <FiMessageCircle size={28} />
             </button>
           </div>
           <button 
@@ -381,7 +447,9 @@ export default function PostDetail({ postId }: PostDetailProps) {
         
         <CommentForm 
           postId={postId}
-          onCommentAdded={handleRefreshComments}
+          onCommentAdded={() => {
+            setTimeout(() => handleRefreshComments(), 100);
+          }}
         />
 
         {commentTree.length > 0 ? (
@@ -390,7 +458,9 @@ export default function PostDetail({ postId }: PostDetailProps) {
               <CommentThread 
                 key={comment.id} 
                 comment={comment} 
-                onCommentAdded={handleRefreshComments}
+                onCommentAdded={() => {
+                  setTimeout(() => handleRefreshComments(), 100);
+                }}
                 postId={postId}
               />
             ))}
@@ -401,6 +471,25 @@ export default function PostDetail({ postId }: PostDetailProps) {
           </div>
         )}
       </div>
+
+      {showLoginModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-neutral-900 rounded-xl p-6 max-w-md w-full mx-4">
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowLoginModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <LoginForm
+              onModeChange={() => {}}
+              onSuccess={handleLoginSuccess}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 } 

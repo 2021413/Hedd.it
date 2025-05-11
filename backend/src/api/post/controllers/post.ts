@@ -67,6 +67,8 @@ interface StrapiEntityPost {
   };
   media: StrapiMedia[];
   comments: StrapiComment[];
+  upvotes?: Array<{ id: number }>;
+  downvotes?: Array<{ id: number }>;
 }
 
 interface StrapiPost {
@@ -91,6 +93,18 @@ interface StrapiPost {
   createdAt?: string;
   updatedAt?: string;
   publishedAt?: string;
+  upvotes?: Array<{ id: number }>;
+  downvotes?: Array<{ id: number }>;
+}
+
+interface VoteData {
+  connect?: number[];
+  disconnect?: number[];
+}
+
+interface UpdatePostData {
+  upvotes?: VoteData;
+  downvotes?: VoteData;
 }
 
 const createPostController = factories.createCoreController('api::post.post', ({ strapi }) => ({
@@ -109,13 +123,21 @@ const createPostController = factories.createCoreController('api::post.post', ({
           const authorId = post?.author?.data?.id;
           const communityId = post?.community?.data?.id;
 
-          const [author, community] = await Promise.all([
+          const [author, community, upvotes, downvotes] = await Promise.all([
             authorId ? strapi.entityService.findOne('plugin::users-permissions.user', authorId, {
               populate: ['avatar', 'banner']
             }) as unknown as StrapiUser : null,
             communityId ? strapi.entityService.findOne('api::community.community', communityId, {
               populate: ['avatar', 'banner']
-            }) as unknown as StrapiCommunity : null
+            }) as unknown as StrapiCommunity : null,
+            strapi.db.query('api::post.post').findOne({
+              where: { id: item.id },
+              populate: ['upvotes']
+            }),
+            strapi.db.query('api::post.post').findOne({
+              where: { id: item.id },
+              populate: ['downvotes']
+            })
           ]);
 
           return {
@@ -141,7 +163,9 @@ const createPostController = factories.createCoreController('api::post.post', ({
                     banner: community.banner
                   }
                 }
-              } : null
+              } : null,
+              upvotes: upvotes?.upvotes || [],
+              downvotes: downvotes?.downvotes || []
             }
           };
         })
@@ -171,7 +195,9 @@ const createPostController = factories.createCoreController('api::post.post', ({
           media: true,
           comments: {
             populate: ['author']
-          }
+          },
+          upvotes: true,
+          downvotes: true
         }
       }) as unknown as StrapiEntityPost;
 
@@ -215,7 +241,9 @@ const createPostController = factories.createCoreController('api::post.post', ({
                 }
               }
             } : null,
-            community: enrichedCommunity
+            community: enrichedCommunity,
+            upvotes: post.upvotes || [],
+            downvotes: post.downvotes || []
           }
         }
       };
@@ -328,6 +356,174 @@ const createPostController = factories.createCoreController('api::post.post', ({
       // Suppression du post
       const deletedPost = await super.delete(ctx);
       return deletedPost;
+    } catch (error) {
+      return ctx.throw(500, error);
+    }
+  },
+
+  async upvote(ctx) {
+    try {
+      const { id } = ctx.params;
+      const userId = ctx.state.user.id;
+
+      const post = await strapi.db.query('api::post.post').findOne({
+        where: { id },
+        populate: ['upvotes', 'downvotes', 'author', 'community']
+      });
+
+      if (!post) {
+        return ctx.notFound('Post non trouvé');
+      }
+
+      const upvoteIds = post.upvotes?.map(u => u.id) || [];
+      const downvoteIds = post.downvotes?.map(d => d.id) || [];
+
+      // Si déjà upvoté, on ne fait rien
+      if (upvoteIds.includes(userId)) {
+        return ctx.badRequest('Vous avez déjà upvoté ce post');
+      }
+
+      // Mise à jour des votes
+      const data = {
+        upvotes: [...upvoteIds, userId],
+        downvotes: downvoteIds.filter(id => id !== userId)
+      };
+
+      const updatedPost = await strapi.db.query('api::post.post').update({
+        where: { id },
+        data,
+        populate: ['upvotes', 'downvotes', 'author', 'community']
+      });
+
+      // Calculer le score
+      const score = (updatedPost.upvotes?.length || 0) - (updatedPost.downvotes?.length || 0);
+
+      return {
+        data: {
+          ...updatedPost,
+          score,
+          hasUpvoted: true,
+          hasDownvoted: false
+        }
+      };
+    } catch (error) {
+      return ctx.throw(500, error);
+    }
+  },
+
+  async downvote(ctx) {
+    try {
+      const { id } = ctx.params;
+      const userId = ctx.state.user.id;
+
+      const post = await strapi.db.query('api::post.post').findOne({
+        where: { id },
+        populate: ['upvotes', 'downvotes', 'author', 'community']
+      });
+
+      if (!post) {
+        return ctx.notFound('Post non trouvé');
+      }
+
+      const upvoteIds = post.upvotes?.map(u => u.id) || [];
+      const downvoteIds = post.downvotes?.map(d => d.id) || [];
+
+      // Si déjà downvoté, on ne fait rien
+      if (downvoteIds.includes(userId)) {
+        return ctx.badRequest('Vous avez déjà downvoté ce post');
+      }
+
+      // Mise à jour des votes
+      const data = {
+        downvotes: [...downvoteIds, userId],
+        upvotes: upvoteIds.filter(id => id !== userId)
+      };
+
+      const updatedPost = await strapi.db.query('api::post.post').update({
+        where: { id },
+        data,
+        populate: ['upvotes', 'downvotes', 'author', 'community']
+      });
+
+      // Calculer le score
+      const score = (updatedPost.upvotes?.length || 0) - (updatedPost.downvotes?.length || 0);
+
+      return {
+        data: {
+          ...updatedPost,
+          score,
+          hasUpvoted: false,
+          hasDownvoted: true
+        }
+      };
+    } catch (error) {
+      return ctx.throw(500, error);
+    }
+  },
+
+  async removeUpvote(ctx) {
+    try {
+      const { id } = ctx.params;
+      const userId = ctx.state.user.id;
+
+      const post = await strapi.db.query('api::post.post').findOne({
+        where: { id },
+        populate: ['upvotes']
+      });
+
+      if (!post) {
+        return ctx.notFound('Post non trouvé');
+      }
+
+      const upvoteIds = post.upvotes?.map(u => u.id) || [];
+
+      if (!upvoteIds.includes(userId)) {
+        return ctx.badRequest('Vous n\'avez pas upvoté ce post');
+      }
+
+      const updatedPost = await strapi.db.query('api::post.post').update({
+        where: { id },
+        data: {
+          upvotes: upvoteIds.filter(id => id !== userId)
+        },
+        populate: ['upvotes', 'downvotes']
+      });
+
+      return { data: updatedPost };
+    } catch (error) {
+      return ctx.throw(500, error);
+    }
+  },
+
+  async removeDownvote(ctx) {
+    try {
+      const { id } = ctx.params;
+      const userId = ctx.state.user.id;
+
+      const post = await strapi.db.query('api::post.post').findOne({
+        where: { id },
+        populate: ['downvotes']
+      });
+
+      if (!post) {
+        return ctx.notFound('Post non trouvé');
+      }
+
+      const downvoteIds = post.downvotes?.map(d => d.id) || [];
+
+      if (!downvoteIds.includes(userId)) {
+        return ctx.badRequest('Vous n\'avez pas downvoté ce post');
+      }
+
+      const updatedPost = await strapi.db.query('api::post.post').update({
+        where: { id },
+        data: {
+          downvotes: downvoteIds.filter(id => id !== userId)
+        },
+        populate: ['upvotes', 'downvotes']
+      });
+
+      return { data: updatedPost };
     } catch (error) {
       return ctx.throw(500, error);
     }

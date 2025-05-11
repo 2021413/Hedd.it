@@ -57,6 +57,47 @@ export default {
           scope: ['delete']
         }
       }
+    },
+    // Routes de vote
+    {
+      method: 'POST',
+      path: '/posts/:id/upvote',
+      handler: 'post.upvote',
+      config: {
+        auth: {
+          scope: ['api::post.post.upvote']
+        }
+      }
+    },
+    {
+      method: 'POST',
+      path: '/posts/:id/downvote',
+      handler: 'post.downvote',
+      config: {
+        auth: {
+          scope: ['api::post.post.downvote']
+        }
+      }
+    },
+    {
+      method: 'POST',
+      path: '/posts/:id/remove-upvote',
+      handler: 'post.removeUpvote',
+      config: {
+        auth: {
+          scope: ['api::post.post.removeUpvote']
+        }
+      }
+    },
+    {
+      method: 'POST',
+      path: '/posts/:id/remove-downvote',
+      handler: 'post.removeDownvote',
+      config: {
+        auth: {
+          scope: ['api::post.post.removeDownvote']
+        }
+      }
     }
   ]
 };
