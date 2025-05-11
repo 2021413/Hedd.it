@@ -83,8 +83,8 @@ export default function CommunityClient({ community: initialCommunity }: Communi
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const [isModerator, setIsModerator] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState('https://picsum.photos/200/200');
-  const [bannerUrl, setBannerUrl] = useState('https://picsum.photos/1000/300');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [bannerUrl, setBannerUrl] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Initial load effect
@@ -344,17 +344,23 @@ export default function CommunityClient({ community: initialCommunity }: Communi
         <div className="w-full max-w-[1000px]">
           <div className="relative mb-8">
             <div 
-              className="w-full h-36 overflow-hidden rounded-2xl bg-cover bg-center" 
-              style={{ backgroundImage: `url(${bannerUrl})` }}
+              className="w-full h-36 overflow-hidden rounded-2xl bg-neutral-900" 
+              style={bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : {}}
             ></div>
             <div className="absolute -bottom-14 left-8">
-              <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#1E1E1E]">
-                <img 
-                  src={avatarUrl}
-                  alt={community.name} 
-                  className="w-full h-full object-cover" 
-                  loading="eager" 
-                />
+              <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#1E1E1E] bg-neutral-800 flex items-center justify-center">
+                {avatarUrl ? (
+                  <img 
+                    src={avatarUrl}
+                    alt={community.name} 
+                    className="w-full h-full object-cover" 
+                    loading="eager" 
+                  />
+                ) : (
+                  <span className="text-4xl font-bold text-green-500">
+                    {community.name.charAt(0).toUpperCase()}
+                  </span>
+                )}
               </div>
             </div>
           </div>

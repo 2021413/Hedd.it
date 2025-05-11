@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FiArrowLeft } from "react-icons/fi";
 import CommunityForm from "@/components/subreddit/CommunityForm";
 import { toast } from "react-hot-toast";
+import { useState } from "react";
 
 async function uploadImage(base64Image: string, token: string): Promise<number | null> {
   if (!base64Image) return null;
@@ -40,6 +41,7 @@ async function uploadImage(base64Image: string, token: string): Promise<number |
 
 export default function CreateCommunityPage() {
   const router = useRouter();
+  const [posting, setPosting] = useState(false);
   
   const handleSubmit = async (data: {
     name: string;
@@ -49,6 +51,7 @@ export default function CreateCommunityPage() {
     visibility: string;
   }) => {
     try {
+      setPosting(true);
       const token = localStorage.getItem('jwt');
       const userId = localStorage.getItem('userId');
       
@@ -106,6 +109,8 @@ export default function CreateCommunityPage() {
       router.push(`/community/${communityName}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Une erreur est survenue lors de la création de la communauté');
+    } finally {
+      setPosting(false);
     }
   };
 
@@ -122,6 +127,15 @@ export default function CreateCommunityPage() {
       </div>
       
       <CommunityForm onSubmit={handleSubmit} />
+
+      {posting && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-neutral-800 p-6 rounded-lg shadow-lg flex flex-col items-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mb-4"></div>
+            <p className="text-white">Création de la communauté en cours...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
