@@ -205,8 +205,8 @@ export default function CommunityForm({ onSubmit }: CommunityFormProps) {
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Décrivez le but de cette communauté"
-          className="w-full bg-neutral-800 text-white p-4 rounded-lg resize-none h-32 focus:outline-none focus:ring-2 focus:ring-green-500"
+          placeholder="Décrivez votre communauté..."
+          className="w-full bg-neutral-800 text-white p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[100px]"
           required
         />
       </div>
@@ -216,49 +216,50 @@ export default function CommunityForm({ onSubmit }: CommunityFormProps) {
         <label className="block mb-2 font-medium">
           Visibilité de la communauté
         </label>
-        <div className="space-y-3">
+        <div className="space-y-2">
           <button
             type="button"
             onClick={() => setVisibility("public")}
-            className={`flex items-center gap-3 w-full p-4 rounded-lg text-left transition-colors ${
-              visibility === "public" ? "bg-green-900" : "bg-neutral-800 hover:bg-neutral-700"
+            className={`w-full flex items-center p-3 rounded-lg ${
+              visibility === "public"
+                ? "bg-green-900 text-white"
+                : "bg-neutral-800 text-gray-300"
             }`}
           >
-            <FiGlobe size={20} className={visibility === "public" ? "text-white" : "text-gray-400"} />
-            <div>
-              <h3 className="font-medium">Publique</h3>
-              <p className="text-sm text-gray-400">Tout le monde peut voir et rejoindre cette communauté</p>
+            <FiGlobe className="mr-2" />
+            <div className="text-left">
+              <div className="font-medium">Publique</div>
+              <div className="text-sm text-gray-400">
+                Tout le monde peut voir et rejoindre cette communauté
+              </div>
             </div>
           </button>
-          
+
           <button
             type="button"
             onClick={() => setVisibility("private")}
-            className={`flex items-center gap-3 w-full p-4 rounded-lg text-left transition-colors ${
-              visibility === "private" ? "bg-green-900" : "bg-neutral-800 hover:bg-neutral-700"
+            className={`w-full flex items-center p-3 rounded-lg ${
+              visibility === "private"
+                ? "bg-green-900 text-white"
+                : "bg-neutral-800 text-gray-300"
             }`}
           >
-            <FiLock size={20} className={visibility === "private" ? "text-white" : "text-gray-400"} />
-            <div>
-              <h3 className="font-medium">Privée</h3>
-              <p className="text-sm text-gray-400">Seuls les membres approuvés peuvent voir et publier</p>
+            <FiLock className="mr-2" />
+            <div className="text-left">
+              <div className="font-medium">Privée</div>
+              <div className="text-sm text-gray-400">
+                Seuls les membres approuvés peuvent voir et publier
+              </div>
             </div>
           </button>
         </div>
       </div>
       
-      {/* Buttons */}
-      <div className="flex justify-end gap-4 pt-4">
-        <Link
-          href="/"
-          className="px-6 py-3 rounded-full bg-neutral-800 hover:bg-neutral-700 transition-colors"
-        >
-          Annuler
-        </Link>
+      {/* Submit Button */}
+      <div className="pt-4">
         <button
           type="submit"
-          className="px-6 py-3 rounded-full bg-green-900 hover:bg-green-800 transition-colors font-medium"
-          disabled={!name || !description}
+          className="w-full bg-green-700 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors"
         >
           Créer la communauté
         </button>

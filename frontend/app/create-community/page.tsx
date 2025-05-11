@@ -67,23 +67,14 @@ export default function CreateCommunityPage() {
         data.banner ? uploadImage(data.banner, token) : Promise.resolve(null),
       ]);
 
-      // Première étape : créer la communauté avec le créateur
+      // Création de la communauté avec les données simplifiées
       const initialRequestBody = {
         data: {
           name: data.name,
           description: data.description,
           avatar: avatarId,
           banner: bannerId,
-          isPrivate: data.visibility === "private",
-          creator: {
-            set: [parseInt(userId)]
-          },
-          moderators: {
-            set: []
-          },
-          members: {
-            set: []
-          }
+          isPrivate: data.visibility === "private"
         }
       };
 
