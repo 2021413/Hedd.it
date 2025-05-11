@@ -101,13 +101,13 @@
       "type": "relation",
       "relation": "manyToMany",
       "target": "api::community.community",
-      "inversedBy": "members"
+      "mappedBy": "members"
     },
     "moderatedCommunities": {
       "type": "relation",
       "relation": "manyToMany",
       "target": "api::community.community",
-      "inversedBy": "moderators"
+      "mappedBy": "moderators"
     },
     "createdCommunities": {
       "type": "relation",
@@ -125,13 +125,13 @@
       "type": "relation",
       "relation": "manyToMany",
       "target": "api::post.post",
-      "inversedBy": "upvotes"
+      "mappedBy": "upvotes"
     },
     "downvotedPosts": {
       "type": "relation",
       "relation": "manyToMany",
       "target": "api::post.post",
-      "inversedBy": "downvotes"
+      "mappedBy": "downvotes"
     },
     "authoredComments": {
       "type": "relation",
@@ -143,13 +143,13 @@
       "type": "relation",
       "relation": "manyToMany",
       "target": "api::comment.comment",
-      "inversedBy": "upvotes"
+      "mappedBy": "upvotes"
     },
     "downvotedComments": {
       "type": "relation",
       "relation": "manyToMany",
       "target": "api::comment.comment",
-      "inversedBy": "downvotes"
+      "mappedBy": "downvotes"
     }
   }
 }

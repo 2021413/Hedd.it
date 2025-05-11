@@ -6,56 +6,49 @@ async function getData(name: string) {
   }
 
   const apiUrl = process.env.STRAPI_URL || 'http://127.0.0.1:1337';
+  const decodedName = decodeURIComponent(name);
   
   try {
-    const url = `${apiUrl}/api/communities?filters[name][$eq]=${encodeURIComponent(decodeURIComponent(name))}&populate[0]=posts.media&populate[1]=avatar&populate[2]=banner&populate[3]=creator&populate[4]=members&populate[5]=moderators`;
+    const url = `${apiUrl}/api/communities/by-name/${encodeURIComponent(decodedName)}`;
 
-    const response = await fetch(
-      url,
-      { 
-        method: 'GET',
-        cache: 'no-store',
-        headers: {
-          'Content-Type': 'application/json',
-        }
+    const response = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
       }
-    );
+    });
 
     if (!response.ok) {
-      if (response.status === 403) {
-        throw new Error('Accès non autorisé - Configuration Strapi requise');
+      if (response.status === 404) {
+        return null;
       }
       throw new Error(`Erreur HTTP: ${response.status}`);
     }
 
-    const data = await response.json();
+    const { data } = await response.json();
     
-    if (!data.data || !Array.isArray(data.data) || data.data.length === 0) {
+    if (!data) {
       return null;
     }
 
-    const community = data.data[0];
-    const rawData = community.attributes || community;
-
-    const processedData = {
-      id: community.id,
-      documentId: (community.documentId || community.id).toString(),
-      name: rawData.name || 'Sans nom',
-      description: rawData.description || '',
-      isPrivate: typeof rawData.isPrivate === 'boolean' ? rawData.isPrivate : false,
-      avatar: rawData.avatar,
-      banner: rawData.banner,
-      createdAt: rawData.createdAt || new Date().toISOString(),
-      posts: rawData.posts || [],
-      members: rawData.members || [],
-      moderators: rawData.moderators || [],
-      creator: rawData.creator || { id: 0, username: 'Inconnu' },
-      rules: rawData.rules || null,
-      slug: rawData.slug || null
+    return {
+      id: data.id,
+      documentId: data.id.toString(),
+      name: data.name || 'Sans nom',
+      description: data.description || '',
+      isPrivate: data.isPrivate || false,
+      avatar: data.avatar,
+      banner: data.banner,
+      createdAt: data.createdAt,
+      posts: data.posts || [],
+      members: data.members || [],
+      moderators: data.moderators || [],
+      creator: data.creator || { id: 0, username: 'Utilisateur supprimé' },
+      rules: data.rules || null,
+      slug: data.slug || null
     };
-
-    return processedData;
-  } catch (error: any) {
+  } catch (error) {
     throw error;
   }
 }
@@ -83,10 +76,8 @@ export default async function CommunityPage({ params }: PageProps) {
       );
     }
 
-    // Ensure data integrity before passing to the client component
     const validatedData = {
       ...communityData,
-      // Ensure these fields are not undefined
       posts: communityData.posts || [],
       members: communityData.members || [],
       moderators: communityData.moderators || [],
@@ -100,11 +91,9 @@ export default async function CommunityPage({ params }: PageProps) {
       <div className="flex flex-col items-center justify-center min-h-screen">
         <h1 className="text-3xl font-bold mb-4">Une erreur est survenue</h1>
         <p className="text-gray-400">
-          {error.message.includes('Configuration Strapi requise') 
-            ? 'Configuration des permissions Strapi nécessaire. Veuillez contacter l\'administrateur.'
-            : error.message === 'Nom de communauté manquant'
-              ? 'Veuillez spécifier un nom de communauté valide.'
-              : `Impossible de charger les données: ${error.message}`}
+          {error.message === 'Nom de communauté manquant'
+            ? 'Veuillez spécifier un nom de communauté valide.'
+            : `Impossible de charger les données: ${error.message}`}
         </p>
       </div>
     );

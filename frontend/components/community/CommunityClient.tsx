@@ -305,7 +305,7 @@ export default function CommunityClient({ community: initialCommunity }: Communi
   }
 
   const posts = community.posts || [];
-  const totalMembers = (community.members?.length || 0) + 1;
+  const totalMembers = community.members?.length || 0;
 
   const AboutSection = () => {
     return (
@@ -345,8 +345,15 @@ export default function CommunityClient({ community: initialCommunity }: Communi
           <div className="relative mb-8">
             <div 
               className="w-full h-36 overflow-hidden rounded-2xl bg-neutral-900" 
-              style={bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : {}}
-            ></div>
+            >
+              {bannerUrl && (
+                <img 
+                  src={bannerUrl}
+                  alt={`Bannière de ${community.name}`}
+                  className="w-full h-full object-cover"
+                />
+              )}
+            </div>
             <div className="absolute -bottom-14 left-8">
               <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#1E1E1E] bg-neutral-800 flex items-center justify-center">
                 {avatarUrl ? (

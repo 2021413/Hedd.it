@@ -10,6 +10,11 @@ const formattedDate = currentDate.toLocaleDateString('fr-FR', {
   year: 'numeric'
 });
 
+interface Rule {
+  title: string;
+  description: string;
+}
+
 interface CommunityFormProps {
   onSubmit: (data: {
     name: string;
@@ -17,7 +22,9 @@ interface CommunityFormProps {
     avatar: string | null;
     banner: string | null;
     visibility: string;
+    rules: Rule[];
   }) => void;
+  posting?: boolean;
 }
 
 export default function CommunityForm({ onSubmit }: CommunityFormProps) {
@@ -26,6 +33,7 @@ export default function CommunityForm({ onSubmit }: CommunityFormProps) {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [visibility, setVisibility] = useState("public");
+  const [rules, setRules] = useState<Rule[]>([{ title: "", description: "" }]);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
 
@@ -79,8 +87,24 @@ export default function CommunityForm({ onSubmit }: CommunityFormProps) {
       description,
       avatar,
       banner,
-      visibility
+      visibility,
+      rules: rules.filter(rule => rule.title.trim() !== "" || rule.description.trim() !== "")
     });
+  };
+
+  const addRule = () => {
+    setRules([...rules, { title: "", description: "" }]);
+  };
+
+  const removeRule = (index: number) => {
+    const newRules = rules.filter((_, i) => i !== index);
+    setRules(newRules.length ? newRules : [{ title: "", description: "" }]);
+  };
+
+  const updateRule = (index: number, field: keyof Rule, value: string) => {
+    const newRules = [...rules];
+    newRules[index] = { ...newRules[index], [field]: value };
+    setRules(newRules);
   };
 
   return (
@@ -255,6 +279,54 @@ export default function CommunityForm({ onSubmit }: CommunityFormProps) {
         </div>
       </div>
       
+      {/* Rules Section */}
+      <div>
+        <label className="block mb-2 font-medium">
+          Règles de la communauté
+        </label>
+        <div className="space-y-4">
+          {rules.map((rule, index) => (
+            <div key={index} className="bg-neutral-800 p-4 rounded-lg space-y-3">
+              <div className="flex justify-between items-center">
+                <h4 className="font-medium">Règle {index + 1}</h4>
+                <button
+                  type="button"
+                  onClick={() => removeRule(index)}
+                  className="text-red-500 hover:text-red-400"
+                >
+                  <FiX size={20} />
+                </button>
+              </div>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={rule.title}
+                  onChange={(e) => updateRule(index, "title", e.target.value)}
+                  placeholder="Titre de la règle"
+                  className="w-full bg-neutral-700 text-white p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <textarea
+                  value={rule.description}
+                  onChange={(e) => updateRule(index, "description", e.target.value)}
+                  placeholder="Description de la règle"
+                  className="w-full bg-neutral-700 text-white p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 min-h-[80px]"
+                />
+              </div>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addRule}
+            className="w-full bg-neutral-800 text-green-500 p-3 rounded-lg hover:bg-neutral-700"
+          >
+            + Ajouter une règle
+          </button>
+        </div>
+        <p className="text-gray-500 text-sm mt-1">
+          Définissez les règles que les membres devront suivre. Chaque règle doit avoir un titre et une description.
+        </p>
+      </div>
+      
       {/* Submit Button */}
       <div className="pt-4">
         <button
@@ -316,6 +388,25 @@ export default function CommunityForm({ onSubmit }: CommunityFormProps) {
                   </div>
                 </div>
               </div>
+              
+              {/* Ajout de l'aperçu des règles */}
+              {rules.filter(rule => rule.title.trim() !== "" || rule.description.trim() !== "").length > 0 && (
+                <div className="mt-4 pt-4 border-t border-neutral-700">
+                  <h4 className="font-bold mb-2">Règles de la communauté</h4>
+                  <div className="space-y-3">
+                    {rules.map((rule, index) => (
+                      (rule.title.trim() !== "" || rule.description.trim() !== "") && (
+                        <div key={index} className="text-sm">
+                          <h5 className="font-medium text-white">{rule.title || `Règle ${index + 1}`}</h5>
+                          {rule.description && (
+                            <p className="text-gray-400 mt-1">{rule.description}</p>
+                          )}
+                        </div>
+                      )
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

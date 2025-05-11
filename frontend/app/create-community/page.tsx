@@ -67,40 +67,70 @@ export default function CreateCommunityPage() {
         data.banner ? uploadImage(data.banner, token) : Promise.resolve(null),
       ]);
 
-      // Création de la communauté avec les données simplifiées
+      interface CommunityData {
+        name: string;
+        description: string;
+        isPrivate: boolean;
+        creator: number;
+        avatar?: number | null;
+        banner?: number | null;
+      }
+
       const initialRequestBody = {
         data: {
           name: data.name,
           description: data.description,
-          avatar: avatarId,
-          banner: bannerId,
-          isPrivate: data.visibility === "private"
-        }
+          isPrivate: data.visibility === "private",
+          creator: parseInt(userId)
+        } as CommunityData
       };
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/communities`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(initialRequestBody),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'Erreur lors de la création de la communauté');
+      // Upload des images si présentes
+      if (avatarId) {
+        initialRequestBody.data.avatar = avatarId;
+      }
+      if (bannerId) {
+        initialRequestBody.data.banner = bannerId;
       }
 
-      const result = await response.json();
-      toast.success('Communauté créée avec succès !');
-      
-      // Accès au slug via le nom de la communauté
-      const communityName = result.data.name;
-      router.push(`/community/${communityName}`);
+      console.log('Données envoyées:', JSON.stringify(initialRequestBody, null, 2));
+
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/communities`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(initialRequestBody),
+        });
+
+        const responseData = await response.json();
+        console.log('Structure complète de la réponse:', responseData);
+
+        if (!response.ok) {
+          throw new Error(responseData.error?.message || 'Erreur lors de la création de la communauté');
+        }
+
+        toast.success('Communauté créée avec succès !');
+        
+        // La structure est différente de ce qu'on attendait
+        if (!responseData.data) {
+          console.error('Structure de réponse inattendue:', responseData);
+          throw new Error('Structure de réponse inattendue');
+        }
+
+        // Utiliser le slug s'il existe, sinon utiliser le nom
+        const communitySlug = responseData.data.slug || responseData.data.name.toLowerCase().replace(/\s+/g, '_');
+        router.push(`/community/${communitySlug}`);
+      } catch (error) {
+        console.error('Erreur complète:', error);
+        toast.error('Une erreur est survenue lors de la création de la communauté');
+      } finally {
+        setPosting(false);
+      }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Une erreur est survenue lors de la création de la communauté');
-    } finally {
+      toast.error('Une erreur est survenue lors de la création de la communauté');
       setPosting(false);
     }
   };
@@ -129,4 +159,4 @@ export default function CreateCommunityPage() {
       )}
     </div>
   );
-} 
+}

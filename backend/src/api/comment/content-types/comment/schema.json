@@ -24,13 +24,13 @@
       "type": "relation",
       "relation": "manyToMany",
       "target": "plugin::users-permissions.user",
-      "inversedBy": "upvotedComments"
+      "mappedBy": "upvotedComments"
     },
     "downvotes": {
       "type": "relation",
       "relation": "manyToMany",
       "target": "plugin::users-permissions.user",
-      "inversedBy": "downvotedComments"
+      "mappedBy": "downvotedComments"
     },
     "replies": {
       "type": "relation",
