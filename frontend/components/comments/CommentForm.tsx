@@ -42,11 +42,10 @@ export default function CommentForm({
         router.push('/login');
         return;
       }
-      
+
       const commentData = {
         data: {
           content,
-          author: userId,
           post: postId,
           ...(parentCommentId && { parent: parentCommentId })
         }
@@ -56,13 +55,13 @@ export default function CommentForm({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`.trim()
         },
         body: JSON.stringify(commentData)
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ error: { message: 'Erreur de connexion' } }));
         throw new Error(errorData.error?.message || 'Erreur lors de l\'envoi du commentaire');
       }
       
@@ -73,6 +72,12 @@ export default function CommentForm({
       }
       
       setContent('');
+      // Animation de succès (fade-in sur le textarea)
+      const textarea = document.querySelector('textarea');
+      if (textarea) {
+        textarea.classList.add('animate-success');
+        setTimeout(() => textarea.classList.remove('animate-success'), 600);
+      }
       toast.success(isReply ? 'Réponse envoyée' : 'Commentaire ajouté');
       
       if (onCommentAdded) {
@@ -91,9 +96,10 @@ export default function CommentForm({
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-neutral-800 text-white p-4 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-green-500"
+        className="w-full bg-neutral-800 text-white p-4 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-green-500 transition-all duration-200 border border-neutral-700 focus:border-green-500"
         rows={isReply ? 3 : 5}
         disabled={isSubmitting}
+        style={{ minHeight: isReply ? 60 : 100 }}
       />
       <div className="mt-2 flex justify-end">
         <button 
@@ -103,6 +109,7 @@ export default function CommentForm({
             bg-green-900 text-white px-5 py-2 rounded-full hover:bg-green-800 transition-colors
             ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}
             ${!content.trim() ? 'opacity-50 cursor-not-allowed' : ''}
+            shadow-md hover:shadow-green-700
           `}
         >
           {isSubmitting ? 'Envoi...' : isReply ? 'Répondre' : 'Commenter'}

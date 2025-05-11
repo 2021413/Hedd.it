@@ -76,41 +76,6 @@ interface ApiResponse {
   };
 }
 
-function mapApiCommentsToTree(comments: any[]): Comment[] {
-  if (!comments || comments.length === 0) return [];
-
-  const rootComments = comments.filter(comment => !comment.parent || !comment.parent.id);
-  const commentMap = comments.reduce((acc, comment) => {
-    acc[comment.id] = comment;
-    return acc;
-  }, {} as Record<number, any>);
-  
-  function buildCommentTree(comment: any): Comment {
-    const replyIds = comment.replies 
-      ? (Array.isArray(comment.replies) ? comment.replies.map((r: any) => r.id) : [])
-      : [];
-      
-    const replies = replyIds
-      .map((id: number) => commentMap[id])
-      .filter(Boolean)
-      .map(buildCommentTree);
-    
-    const upvotes = comment.upvotes?.length || 0;
-    const downvotes = comment.downvotes?.length || 0;
-    
-    return {
-      id: comment.id,
-      author: comment.author?.username || "Utilisateur inconnu",
-      content: comment.content,
-      timeAgo: formatDateToNow(comment.createdAt),
-      likes: upvotes - downvotes,
-      replies: replies.length > 0 ? replies : undefined
-    };
-  }
-  
-  return rootComments.map(buildCommentTree);
-}
-
 function formatDateToNow(dateStr: string): string {
   try {
     const date = new Date(dateStr);
@@ -206,9 +171,22 @@ export default function PostDetail({ postId }: PostDetailProps) {
         
         setPost(result.data);
         
-        if (result.data.attributes.comments) {
-          const commentTree = mapApiCommentsToTree(result.data.attributes.comments);
-          setCommentTree(commentTree);
+        // Récupération des commentaires via la nouvelle route thread
+        const commentsUrl = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/comments/thread?post=${postId}`;
+        const commentsResponse = await fetch(commentsUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          cache: 'no-store'
+        });
+        
+        if (commentsResponse.ok) {
+          const commentTree = await commentsResponse.json();
+          // L'API renvoie directement l'arbre
+          const adaptedComments = commentTree.map((comment: any) => adaptCommentFromApi(comment));
+          setCommentTree(adaptedComments);
         }
       } catch (error) {
         setError(error instanceof Error ? error.message : "Une erreur est survenue");
@@ -224,7 +202,7 @@ export default function PostDetail({ postId }: PostDetailProps) {
   const handleRefreshComments = async () => {
     try {
       const token = localStorage.getItem('jwt');
-      const url = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts/${postId}`;
+      const url = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/comments/thread?post=${postId}`;
       
       const response = await fetch(url, { 
         method: 'GET',
@@ -239,15 +217,28 @@ export default function PostDetail({ postId }: PostDetailProps) {
         throw new Error("Impossible de rafraîchir les commentaires");
       }
       
-      const result = await response.json();
-      
-      if (result.data.attributes.comments) {
-        const newCommentTree = mapApiCommentsToTree(result.data.attributes.comments);
-        setCommentTree(newCommentTree);
-      }
+      const commentTree = await response.json();
+      const adaptedComments = commentTree.map((comment: any) => adaptCommentFromApi(comment));
+      setCommentTree(adaptedComments);
     } catch (error) {
       toast.error("Impossible de rafraîchir les commentaires");
     }
+  };
+
+  const adaptCommentFromApi = (comment: any): Comment => {
+    return {
+      id: comment.id,
+      author: comment.author?.username || "Utilisateur inconnu",
+      content: comment.content,
+      timeAgo: formatDateToNow(comment.createdAt),
+      likes: (comment.upvotes?.length || 0) - (comment.downvotes?.length || 0),
+      avatarUrl: comment.author?.avatar?.url
+        ? `${process.env.NEXT_PUBLIC_STRAPI_URL}${comment.author.avatar.url}`
+        : undefined,
+      replies: comment.replies?.length > 0
+        ? comment.replies.map((reply: any) => adaptCommentFromApi(reply))
+        : undefined
+    };
   };
 
   const handleShare = () => {
@@ -399,6 +390,8 @@ export default function PostDetail({ postId }: PostDetailProps) {
               <CommentThread 
                 key={comment.id} 
                 comment={comment} 
+                onCommentAdded={handleRefreshComments}
+                postId={postId}
               />
             ))}
           </div>

@@ -25,6 +25,9 @@ interface StrapiComment {
 const createCommentController = factories.createCoreController('api::comment.comment', ({ strapi }) => ({
   async create(ctx) {
     const { content, post, parent } = ctx.request.body.data;
+    if (!ctx.state.user) {
+      return ctx.unauthorized('Utilisateur non authentifié');
+    }
     const userId = ctx.state.user.id;
 
     // Validation des données requises
@@ -66,7 +69,12 @@ const createCommentController = factories.createCoreController('api::comment.com
           },
           populate: {
             author: {
-              fields: ['id', 'username']
+              fields: ['id', 'username'],
+              populate: {
+                avatar: {
+                  fields: ['url', 'name']
+                }
+              }
             },
             post: {
               fields: ['id', 'title']
@@ -93,7 +101,67 @@ const createCommentController = factories.createCoreController('api::comment.com
       }
       return ctx.throw(500, error);
     }
-  }
+  },
+
+  async find(ctx) {
+    // On surcharge la récupération pour bien populate toutes les relations utiles
+    ctx.query = {
+      ...ctx.query,
+      populate: {
+        parent: { fields: ['id'] },
+        author: {
+          fields: ['id', 'username'],
+          populate: { avatar: { fields: ['url', 'name'] } }
+        },
+        post: { fields: ['id', 'title'] },
+        upvotes: true,
+        downvotes: true,
+      }
+    };
+    // On appelle le contrôleur de base avec ce populate
+    return await super.find(ctx);
+  },
+
+  // Route custom pour récupérer l'arbre des commentaires d'un post
+  async thread(ctx) {
+    const postId = ctx.query.post;
+    if (!postId) {
+      return ctx.badRequest('Paramètre post manquant');
+    }
+
+    // Récupère tous les commentaires du post, avec parent et author/avatar
+    const comments = await strapi.entityService.findMany('api::comment.comment', {
+      filters: { post: postId },
+      populate: {
+        parent: { fields: ['id'] },
+        author: { fields: ['id', 'username'], populate: { avatar: { fields: ['url', 'name'] } } },
+        upvotes: true,
+        downvotes: true,
+      },
+      sort: ['createdAt:asc'],
+      publicationState: 'preview',
+      limit: 1000,
+    });
+
+    // On construit la map id -> commentaire
+    const commentMap = {};
+    comments.forEach((c) => {
+      commentMap[c.id] = { ...c, replies: [] };
+    });
+
+    // On construit l'arbre
+    const roots = [];
+    comments.forEach((c) => {
+      const parentId = (c as any).parent?.id;
+      if (parentId && commentMap[parentId]) {
+        commentMap[parentId].replies.push(commentMap[c.id]);
+      } else {
+        roots.push(commentMap[c.id]);
+      }
+    });
+
+    ctx.body = roots;
+  },
 }));
 
 export default createCommentController;
