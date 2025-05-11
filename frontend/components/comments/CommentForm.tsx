@@ -66,6 +66,12 @@ export default function CommentForm({
         throw new Error(errorData.error?.message || 'Erreur lors de l\'envoi du commentaire');
       }
       
+      const responseData = await response.json();
+      
+      if (!responseData.data) {
+        throw new Error('Format de réponse invalide');
+      }
+      
       setContent('');
       toast.success(isReply ? 'Réponse envoyée' : 'Commentaire ajouté');
       
@@ -73,7 +79,6 @@ export default function CommentForm({
         onCommentAdded();
       }
     } catch (error) {
-      console.error('Erreur de commentaire:', error);
       toast.error(error instanceof Error ? error.message : 'Une erreur est survenue');
     } finally {
       setIsSubmitting(false);

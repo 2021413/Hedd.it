@@ -28,11 +28,19 @@ export default {
       path: '/communities',
       handler: 'community.create'
     },
-    // Route personnalisée
+    // Routes personnalisées
     {
       method: 'GET',
       path: '/communities/by-name/:name',
       handler: 'community.findByName',
+      config: {
+        auth: false
+      }
+    },
+    {
+      method: 'GET',
+      path: '/communities/user/:id',
+      handler: 'community.findUserCommunities',
       config: {
         auth: false
       }

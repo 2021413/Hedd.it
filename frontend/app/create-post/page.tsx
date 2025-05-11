@@ -38,7 +38,6 @@ async function uploadImage(base64Image: string, token: string): Promise<number |
     });
 
     if (!uploadResponse.ok) {
-      const errorData = await uploadResponse.json().catch(() => ({}));
       throw new Error(`Erreur lors de l'upload de l'image: ${uploadResponse.status}`);
     }
 
@@ -84,8 +83,9 @@ export default function CreatePostPage() {
           return;
         }
         
+        // Utilisation de la nouvelle route pour récupérer les communautés de l'utilisateur
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/communities?populate=*&filters[members][id][$eq]=${userId}`,
+          `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/communities/user/${userId}`,
           {
             method: 'GET',
             headers: {
@@ -99,9 +99,10 @@ export default function CreatePostPage() {
           throw new Error('Erreur lors de la récupération des communautés');
         }
 
-        const data = await response.json();
+        const responseData = await response.json();
         
-        if (!data.data || data.data.length === 0) {
+        if (!responseData.data || responseData.data.length === 0) {
+          // Si l'utilisateur n'a pas de communautés, récupérer toutes les communautés publiques
           const allCommResponse = await fetch(
             `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/communities?populate=*`,
             {
@@ -122,48 +123,33 @@ export default function CreatePostPage() {
             throw new Error('Format de données incorrect');
           }
           
-          data.data = allCommData.data;
+          responseData.data = allCommData.data;
         }
         
-        const formattedCommunities = data.data.map((comm: any) => {
-          let id = comm.id;
-          let name = "";
-          let avatarUrl = "";
+        const formattedCommunities = responseData.data.map((comm: any) => {
+          let avatarUrl = '';
           
-          if (comm.attributes) {
-            name = comm.attributes.name || `Communauté ${id}`;
-            
-            if (comm.attributes.avatar && comm.attributes.avatar.data) {
-              const avatarData = comm.attributes.avatar.data;
-              if (avatarData.attributes && avatarData.attributes.url) {
-                avatarUrl = avatarData.attributes.url;
+          if (comm.avatar) {
+            if (typeof comm.avatar === 'object') {
+              if (comm.avatar.url) {
+                avatarUrl = comm.avatar.url;
+              } else if (comm.avatar.data && comm.avatar.data.attributes) {
+                avatarUrl = comm.avatar.data.attributes.url;
               }
-            }
-          } else {
-            name = comm.name || `Communauté ${id}`;
-            
-            if (comm.avatar) {
-              if (typeof comm.avatar === 'object') {
-                if (comm.avatar.url) {
-                  avatarUrl = comm.avatar.url;
-                } else if (comm.avatar.data && comm.avatar.data.attributes) {
-                  avatarUrl = comm.avatar.data.attributes.url;
-                }
-              } else if (typeof comm.avatar === 'string') {
-                avatarUrl = comm.avatar;
-              }
+            } else if (typeof comm.avatar === 'string') {
+              avatarUrl = comm.avatar;
             }
           }
           
           if (!avatarUrl) {
-            avatarUrl = `https://placehold.co/100x100/191919/39FF14?text=${name.charAt(0).toUpperCase()}`;
+            avatarUrl = `https://placehold.co/100x100/191919/39FF14?text=${comm.name.charAt(0).toUpperCase()}`;
           } else if (avatarUrl.startsWith('/')) {
             avatarUrl = `${process.env.NEXT_PUBLIC_STRAPI_URL}${avatarUrl}`;
           }
           
           return {
-            id,
-            name,
+            id: comm.id,
+            name: comm.name || `Communauté ${comm.id}`,
             avatar: avatarUrl
           };
         });
@@ -205,47 +191,21 @@ export default function CreatePostPage() {
         throw new Error("Communauté non trouvée");
       }
 
-      // Vérifier si l'utilisateur est membre de la communauté sélectionnée
-      const isMember = await fetch(
-        `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/communities/${communityId}?populate=members`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          }
-        }
-      ).then(res => res.json())
-        .then(data => {
-          const members = data.data?.attributes?.members?.data || [];
-          return members.some((member: any) => member.id === parseInt(userId));
-        });
-
-      if (!isMember) {
-        throw new Error("Vous devez être membre de la communauté pour créer un post");
-      }
-
       let mediaId = null;
       if (data.selectedImage) {
         mediaId = await uploadImage(data.selectedImage, token);
       }
 
-      const postData: PostData = {
+      const postData = {
         data: {
           title: data.title,
           content: data.content,
-          author: userId,
-          community: {
-            set: [communityId]
-          }
+          community: communityId,
+          media: mediaId ? [mediaId] : []
         }
       };
 
-      if (mediaId) {
-        postData.data.media = {
-          set: [mediaId]
-        };
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -255,58 +215,11 @@ export default function CreatePostPage() {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch (e) {
-          errorData = { error: { message: 'Erreur lors de la création du post' } };
-        }
-        
-        throw new Error(errorData.error?.message || `Erreur ${response.status}: Impossible de créer le post`);
+        throw new Error(`Erreur ${response.status}: Impossible de créer le post`);
       }
 
-      const result = await response.json();
-      const postId = result.data?.id;
-      
-      if (!postId) {
-        toast.success('Post créé avec succès!');
-        router.push('/');
-        return;
-      }
-
-      try {
-        const updateResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts/${postId}`,
-          {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              data: {
-                community: communityId
-              }
-            })
-          }
-        );
-        
-        let successMessage = "Post créé avec succès!";
-        
-        if (updateResponse.ok) {
-          successMessage += " Relation communauté établie.";
-        } else {
-          successMessage += " (Note: La relation avec la communauté n'a pas pu être renforcée)";
-        }
-        
-        toast.success(successMessage);
-        router.push('/');
-      } catch (error) {
-        toast.success('Post créé avec succès!');
-        router.push('/');
-      }
+      toast.success('Post créé avec succès!');
+      router.push('/');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue lors de la création du post';
       setError(errorMessage);

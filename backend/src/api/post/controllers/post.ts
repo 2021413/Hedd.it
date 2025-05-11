@@ -4,4 +4,334 @@
 
 import { factories } from '@strapi/strapi'
 
-export default factories.createCoreController('api::post.post');
+interface StrapiUser {
+  id: number;
+  username: string;
+  email: string;
+  avatar?: any;
+  banner?: any;
+  createdAt?: string;
+  updatedAt?: string;
+  publishedAt?: string;
+}
+
+interface StrapiMember {
+  id: number;
+  username: string;
+}
+
+interface StrapiCommunity {
+  id: number;
+  name: string;
+  description?: string;
+  isPrivate?: boolean;
+  avatar?: any;
+  banner?: any;
+  rules?: any;
+  slug?: string;
+  members?: StrapiMember[];
+  moderators?: StrapiMember[];
+  createdAt?: string;
+  updatedAt?: string;
+  publishedAt?: string;
+}
+
+interface StrapiMedia {
+  id: number;
+  url: string;
+}
+
+interface StrapiComment {
+  id: number;
+  content: string;
+  author: StrapiUser;
+  createdAt: string;
+}
+
+interface StrapiEntityPost {
+  id: number;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string;
+  author: {
+    id: number;
+    username: string;
+    avatar?: any;
+    banner?: any;
+  };
+  community: {
+    id: number;
+    name: string;
+  };
+  media: StrapiMedia[];
+  comments: StrapiComment[];
+}
+
+interface StrapiPost {
+  id: number;
+  title: string;
+  content: string;
+  media?: Array<{
+    id: number;
+    url: string;
+  }>;
+  author?: {
+    id: number;
+    username: string;
+    avatar?: {
+      url: string;
+    };
+    banner?: {
+      url: string;
+    };
+  };
+  community?: StrapiCommunity;
+  createdAt?: string;
+  updatedAt?: string;
+  publishedAt?: string;
+}
+
+const createPostController = factories.createCoreController('api::post.post', ({ strapi }) => ({
+  async find(ctx) {
+    try {
+      // Récupérer les paramètres de pagination et de filtrage
+      const { query } = ctx;
+
+      // Appliquer la méthode find avec les relations nécessaires
+      const { data, meta } = await super.find(ctx);
+      
+      // Enrichir la réponse avec les détails de l'auteur et de la communauté
+      const enrichedData = await Promise.all(
+        data.map(async (item) => {
+          const post = item.attributes;
+          const authorId = post?.author?.data?.id;
+          const communityId = post?.community?.data?.id;
+
+          const [author, community] = await Promise.all([
+            authorId ? strapi.entityService.findOne('plugin::users-permissions.user', authorId, {
+              populate: ['avatar', 'banner']
+            }) as unknown as StrapiUser : null,
+            communityId ? strapi.entityService.findOne('api::community.community', communityId, {
+              populate: ['avatar', 'banner']
+            }) as unknown as StrapiCommunity : null
+          ]);
+
+          return {
+            ...item,
+            attributes: {
+              ...post,
+              author: author ? {
+                data: {
+                  id: author.id,
+                  attributes: {
+                    username: author.username,
+                    avatar: author.avatar,
+                    banner: author.banner
+                  }
+                }
+              } : null,
+              community: community ? {
+                data: {
+                  id: community.id,
+                  attributes: {
+                    name: community.name,
+                    avatar: community.avatar,
+                    banner: community.banner
+                  }
+                }
+              } : null
+            }
+          };
+        })
+      );
+
+      return { data: enrichedData, meta };
+    } catch (error) {
+      console.error('Erreur dans find:', error);
+      return ctx.throw(500, error);
+    }
+  },
+
+  async findOne(ctx) {
+    try {
+      const { id } = ctx.params;
+      
+      // Récupérer le post avec toutes les relations nécessaires
+      const post = await strapi.entityService.findOne('api::post.post', id, {
+        populate: {
+          author: {
+            populate: ['avatar', 'banner']
+          },
+          community: {
+            populate: ['avatar', 'banner'],
+            fields: ['id', 'name', 'description']
+          },
+          media: true,
+          comments: {
+            populate: ['author']
+          }
+        }
+      }) as unknown as StrapiEntityPost;
+
+      if (!post) {
+        return ctx.notFound('Post non trouvé');
+      }
+
+      // Enrichir les données de la communauté
+      let enrichedCommunity = null;
+      if (post.community?.id) {
+        const communityData = await strapi.entityService.findOne('api::community.community', post.community.id, {
+          populate: ['avatar', 'banner']
+        }) as unknown as StrapiCommunity;
+        
+        if (communityData) {
+          enrichedCommunity = {
+            data: {
+              id: communityData.id,
+              attributes: {
+                name: communityData.name,
+                avatar: communityData.avatar,
+                banner: communityData.banner
+              }
+            }
+          };
+        }
+      }
+
+      return {
+        data: {
+          id: post.id,
+          attributes: {
+            ...post,
+            author: post.author ? {
+              data: {
+                id: post.author.id,
+                attributes: {
+                  username: post.author.username,
+                  avatar: post.author.avatar,
+                  banner: post.author.banner
+                }
+              }
+            } : null,
+            community: enrichedCommunity
+          }
+        }
+      };
+    } catch (error) {
+      console.error('Erreur dans findOne:', error);
+      return ctx.throw(500, error);
+    }
+  },
+
+  async create(ctx) {
+    try {
+      const { title, content, community, media } = ctx.request.body.data;
+      const userId = ctx.state.user.id;
+
+      // Validation des données requises
+      if (!title || !content || !community) {
+        return ctx.badRequest('Titre, contenu et communauté sont requis');
+      }
+
+      // Vérification de l'appartenance à la communauté
+      const communityData = await strapi.entityService.findOne('api::community.community', community, {
+        populate: ['members']
+      }) as unknown as StrapiCommunity;
+
+      if (!communityData) {
+        return ctx.notFound('Communauté non trouvée');
+      }
+
+      const isMember = communityData.members.some(member => member.id === userId);
+      if (!isMember) {
+        return ctx.forbidden('Vous devez être membre de la communauté pour poster');
+      }
+
+      // Création du post
+      const post = await strapi.entityService.create('api::post.post', {
+        data: {
+          title,
+          content,
+          author: userId,
+          community,
+          media: media || [],
+          publishedAt: new Date()
+        },
+        populate: {
+          author: {
+            populate: ['avatar', 'banner']
+          },
+          community: {
+            fields: ['id', 'name']
+          },
+          media: true
+        }
+      }) as unknown as StrapiPost;
+
+      return {
+        data: post
+      };
+    } catch (error) {
+      return ctx.throw(500, error);
+    }
+  },
+
+  async update(ctx) {
+    try {
+      const { id } = ctx.params;
+      const userId = ctx.state.user.id;
+
+      // Vérification que l'utilisateur est l'auteur du post
+      const existingPost = await strapi.entityService.findOne('api::post.post', id, {
+        populate: ['author']
+      }) as unknown as StrapiPost;
+
+      if (!existingPost) {
+        return ctx.notFound('Post non trouvé');
+      }
+
+      if (existingPost.author?.id !== userId) {
+        return ctx.forbidden('Vous n\'êtes pas autorisé à modifier ce post');
+      }
+
+      // Mise à jour du post
+      const updatedPost = await super.update(ctx);
+      return updatedPost;
+    } catch (error) {
+      return ctx.throw(500, error);
+    }
+  },
+
+  async delete(ctx) {
+    try {
+      const { id } = ctx.params;
+      const userId = ctx.state.user.id;
+
+      // Vérification que l'utilisateur est l'auteur du post
+      const existingPost = await strapi.entityService.findOne('api::post.post', id, {
+        populate: ['author', 'community.moderators']
+      }) as unknown as StrapiPost;
+
+      if (!existingPost) {
+        return ctx.notFound('Post non trouvé');
+      }
+
+      const isAuthor = existingPost.author?.id === userId;
+      const isModerator = existingPost.community?.moderators.some(mod => mod.id === userId);
+
+      if (!isAuthor && !isModerator) {
+        return ctx.forbidden('Vous n\'êtes pas autorisé à supprimer ce post');
+      }
+
+      // Suppression du post
+      const deletedPost = await super.delete(ctx);
+      return deletedPost;
+    } catch (error) {
+      return ctx.throw(500, error);
+    }
+  }
+}))
+
+export default createPostController;

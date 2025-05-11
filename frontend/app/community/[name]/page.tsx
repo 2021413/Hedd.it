@@ -1,16 +1,13 @@
 import CommunityClient from '@/components/community/CommunityClient';
 
 async function getData(name: string) {
-  if (!name) {
-    return null;
-  }
+  if (!name) return null;
 
   const apiUrl = process.env.STRAPI_URL || 'http://127.0.0.1:1337';
   const decodedName = decodeURIComponent(name);
   
   try {
     const url = `${apiUrl}/api/communities/by-name/${encodeURIComponent(decodedName)}`;
-
     const response = await fetch(url, {
       method: 'GET',
       cache: 'no-store',
@@ -20,17 +17,12 @@ async function getData(name: string) {
     });
 
     if (!response.ok) {
-      if (response.status === 404) {
-        return null;
-      }
+      if (response.status === 404) return null;
       throw new Error(`Erreur HTTP: ${response.status}`);
     }
 
     const { data } = await response.json();
-    
-    if (!data) {
-      return null;
-    }
+    if (!data) return null;
 
     return {
       id: data.id,
@@ -60,7 +52,6 @@ interface PageProps {
 export default async function CommunityPage({ params }: PageProps) {
   try {
     const resolvedParams = await params;
-    
     if (!resolvedParams.name) {
       throw new Error('Nom de communauté manquant');
     }
@@ -76,16 +67,7 @@ export default async function CommunityPage({ params }: PageProps) {
       );
     }
 
-    const validatedData = {
-      ...communityData,
-      posts: communityData.posts || [],
-      members: communityData.members || [],
-      moderators: communityData.moderators || [],
-      rules: communityData.rules || null,
-      slug: communityData.slug || null
-    };
-
-    return <CommunityClient community={validatedData} />;
+    return <CommunityClient community={communityData} />;
   } catch (error: any) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">

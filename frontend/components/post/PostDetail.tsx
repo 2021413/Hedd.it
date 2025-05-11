@@ -14,31 +14,59 @@ interface PostDetailProps {
 
 interface PostData {
   id: number;
-  title: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
-  publishedAt: string;
-  documentId: string;
-  media?: any[];
-  author?: {
-    id: number;
-    username: string;
-    email?: string;
-    provider?: string;
-    documentId?: string;
+  attributes: {
+    title: string;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
+    publishedAt: string;
+    media?: Array<{
+      id: number;
+      url: string;
+    }>;
+    author?: {
+      data: {
+        id: number;
+        attributes: {
+          username: string;
+          avatar?: {
+            url: string;
+          };
+          banner?: {
+            url: string;
+          };
+        };
+      };
+    };
+    community?: {
+      data: {
+        id: number;
+        attributes: {
+          name: string;
+          avatar?: {
+            url: string;
+          } | string;
+        };
+      };
+    };
+    comments?: Array<{
+      id: number;
+      attributes: {
+        content: string;
+        createdAt: string;
+        author: {
+          data: {
+            id: number;
+            attributes: {
+              username: string;
+            };
+          };
+        };
+      };
+    }>;
+    upvotes?: Array<any>;
+    downvotes?: Array<any>;
   };
-  community?: {
-    id: number;
-    name: string;
-    description?: string;
-    isPrivate?: boolean;
-    documentId?: string;
-    avatar?: any;
-  };
-  comments: any[];
-  upvotes: any[];
-  downvotes: any[];
 }
 
 interface ApiResponse {
@@ -51,10 +79,7 @@ interface ApiResponse {
 function mapApiCommentsToTree(comments: any[]): Comment[] {
   if (!comments || comments.length === 0) return [];
 
-  const rootComments = comments.filter(comment => 
-    !comment.parent || !comment.parent.id
-  );
-  
+  const rootComments = comments.filter(comment => !comment.parent || !comment.parent.id);
   const commentMap = comments.reduce((acc, comment) => {
     acc[comment.id] = comment;
     return acc;
@@ -89,9 +114,7 @@ function mapApiCommentsToTree(comments: any[]): Comment[] {
 function formatDateToNow(dateStr: string): string {
   try {
     const date = new Date(dateStr);
-    if (isNaN(date.getTime())) {
-      return "récemment";
-    }
+    if (isNaN(date.getTime())) return "récemment";
     
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
@@ -136,54 +159,37 @@ export default function PostDetail({ postId }: PostDetailProps) {
           throw new Error("ID de post invalide");
         }
         
-        const url = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts?filters[id][$eq]=${postId}&populate=*`;
-        
+        const url = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts/${postId}`;
         const token = localStorage.getItem('jwt');
         
-        const response = await fetch(
-          url,
-          { 
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-            },
-            cache: 'no-store'
-          }
-        );
+        const response = await fetch(url, { 
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          cache: 'no-store'
+        });
         
         if (!response.ok) {
-          const errorResponse = await response.text();
-          
           if (response.status === 404) {
-            try {
-              const availablePostsResponse = await fetch(
-                `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts?sort=id:desc&pagination[pageSize]=5`, 
-                {
-                  method: 'GET',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                  }
-                }
-              );
-              
-              if (availablePostsResponse.ok) {
-                const result = await availablePostsResponse.json();
-                
-                if (result.data && Array.isArray(result.data) && result.data.length > 0) {
-                  const formattedPosts = result.data.map((p: any) => {
-                    return {
-                      id: p.id,
-                      title: p.attributes?.title || p.title || `Post ${p.id}`
-                    };
-                  });
-                  
-                  setAvailablePosts(formattedPosts);
+            const availablePostsResponse = await fetch(
+              `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts?sort=id:desc&pagination[pageSize]=5`, 
+              {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 }
               }
-            } catch (error) {
-              // Gestion silencieuse des erreurs pour les posts disponibles
+            );
+            
+            if (availablePostsResponse.ok) {
+              const result = await availablePostsResponse.json();
+              setAvailablePosts(result.data.map((p: PostData) => ({
+                id: p.id,
+                title: p.attributes.title
+              })));
             }
             
             throw new Error(`Le post avec l'ID ${postId} n'existe pas`);
@@ -192,18 +198,16 @@ export default function PostDetail({ postId }: PostDetailProps) {
           throw new Error(`Impossible de charger le post: ${response.status} ${response.statusText}`);
         }
         
-        const result: ApiResponse = await response.json();
+        const result = await response.json();
         
-        if (!result.data || result.data.length === 0) {
-          throw new Error("Format de réponse invalide de l'API ou post non trouvé");
+        if (!result?.data?.attributes) {
+          throw new Error("Structure de données invalide reçue du serveur");
         }
         
-        const postData = result.data[0];
+        setPost(result.data);
         
-        setPost(postData);
-        
-        if (postData.comments && Array.isArray(postData.comments)) {
-          const commentTree = mapApiCommentsToTree(postData.comments);
+        if (result.data.attributes.comments) {
+          const commentTree = mapApiCommentsToTree(result.data.attributes.comments);
           setCommentTree(commentTree);
         }
       } catch (error) {
@@ -220,34 +224,26 @@ export default function PostDetail({ postId }: PostDetailProps) {
   const handleRefreshComments = async () => {
     try {
       const token = localStorage.getItem('jwt');
+      const url = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts/${postId}`;
       
-      const url = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts?filters[id][$eq]=${postId}&populate=*`;
-      
-      const response = await fetch(
-        url,
-        { 
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          cache: 'no-store'
-        }
-      );
+      const response = await fetch(url, { 
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        cache: 'no-store'
+      });
       
       if (!response.ok) {
         throw new Error("Impossible de rafraîchir les commentaires");
       }
       
-      const result: ApiResponse = await response.json();
+      const result = await response.json();
       
-      if (result.data && result.data.length > 0) {
-        const postData = result.data[0];
-        
-        if (postData.comments && Array.isArray(postData.comments)) {
-          const newCommentTree = mapApiCommentsToTree(postData.comments);
-          setCommentTree(newCommentTree);
-        }
+      if (result.data.attributes.comments) {
+        const newCommentTree = mapApiCommentsToTree(result.data.attributes.comments);
+        setCommentTree(newCommentTree);
       }
     } catch (error) {
       toast.error("Impossible de rafraîchir les commentaires");
@@ -255,8 +251,7 @@ export default function PostDetail({ postId }: PostDetailProps) {
   };
 
   const handleShare = () => {
-    const postUrl = window.location.href;
-    navigator.clipboard.writeText(postUrl);
+    navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -269,12 +264,12 @@ export default function PostDetail({ postId }: PostDetailProps) {
     );
   }
   
-  if (error || !post) {
+  if (error || !post || !post.attributes) {
     return (
       <div className="max-w-4xl mx-auto text-center">
         <div className="bg-neutral-900 p-8 rounded-lg">
           <h1 className="text-2xl font-bold mb-4">Erreur</h1>
-          <p className="mb-4">{error || "Post non trouvé"}</p>
+          <p className="mb-4">{error || "Post non trouvé ou données invalides"}</p>
           
           {availablePosts.length > 0 && (
             <div className="mb-6">
@@ -300,34 +295,35 @@ export default function PostDetail({ postId }: PostDetailProps) {
   }
   
   const {
-    title,
-    content,
-    createdAt,
-    media,
-    author,
-    community,
-    upvotes,
-    downvotes,
-  } = post;
+    title = '',
+    content = '',
+    createdAt = '',
+    media = [],
+    author = null,
+    community = null,
+  } = post.attributes || {};
   
   const imageUrl = media && media[0]?.url
     ? `${process.env.NEXT_PUBLIC_STRAPI_URL}${media[0].url}`
     : null;
   
-  let communityAvatar = `https://placehold.co/100x100/191919/39FF14?text=${community?.name?.charAt(0).toUpperCase() || '?'}`;
+  let communityAvatar = community?.data?.attributes?.name 
+    ? `https://placehold.co/100x100/191919/39FF14?text=${community.data.attributes.name.charAt(0).toUpperCase()}`
+    : `https://placehold.co/100x100/191919/39FF14?text=?`;
   
-  if (community?.avatar) {
-    if (typeof community.avatar === 'string') {
-      communityAvatar = community.avatar.startsWith('http') 
-        ? community.avatar 
-        : `${process.env.NEXT_PUBLIC_STRAPI_URL}${community.avatar}`;
-    } else if (community.avatar.url) {
-      communityAvatar = `${process.env.NEXT_PUBLIC_STRAPI_URL}${community.avatar.url}`;
+  if (community?.data?.attributes?.avatar) {
+    const avatar = community.data.attributes.avatar;
+    if (typeof avatar === 'string') {
+      communityAvatar = avatar.startsWith('http') 
+        ? avatar 
+        : `${process.env.NEXT_PUBLIC_STRAPI_URL}${avatar}`;
+    } else if (avatar?.url) {
+      communityAvatar = `${process.env.NEXT_PUBLIC_STRAPI_URL}${avatar.url}`;
     }
   }
   
-  const upvoteCount = upvotes?.length || 0;
-  const downvoteCount = downvotes?.length || 0;
+  const upvoteCount = post.attributes.upvotes?.length || 0;
+  const downvoteCount = post.attributes.downvotes?.length || 0;
   const voteScore = upvoteCount - downvoteCount;
 
   return (
@@ -335,25 +331,29 @@ export default function PostDetail({ postId }: PostDetailProps) {
       <div className="bg-transparent hover:bg-neutral-900 transition-colors duration-200 text-white p-8 rounded-2xl shadow-lg relative">
         <div className="flex items-center mb-2">
           <div className="flex items-center gap-2">
-            <img 
-              src={communityAvatar} 
-              alt={`h/${community?.name || 'communauté'}`} 
-              className="w-8 h-8 rounded-full object-cover"
-            />
-            <span className="font-semibold text-lg text-white">
-              h/{community?.name || 'communauté'}
-            </span>
+            <Link 
+              href={`/community/${community?.data?.id || ''}`}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              <img 
+                src={communityAvatar} 
+                alt={`h/${community?.data?.attributes?.name || 'communauté'}`} 
+                className="w-8 h-8 rounded-full object-cover"
+              />
+              <span className="font-semibold text-lg text-white hover:text-green-500 transition-colors">
+                h/{community?.data?.attributes?.name || 'communauté'}
+              </span>
+            </Link>
             <span className="text-base text-gray-400">
               • {formatDateToNow(createdAt)}
             </span>
             <span className="text-base text-gray-400">
-              • par {author?.username || 'utilisateur inconnu'}
+              • par {author?.data?.attributes?.username || 'utilisateur inconnu'}
             </span>
           </div>
         </div>
         
         <h1 className="text-3xl font-extrabold mb-5 leading-tight">{title}</h1>
-        
         <p className="text-lg mb-5">{content}</p>
         
         {imageUrl && (

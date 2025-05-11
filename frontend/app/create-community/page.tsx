@@ -11,15 +11,11 @@ async function uploadImage(base64Image: string, token: string): Promise<number |
   if (!base64Image) return null;
 
   try {
-    // Convertir base64 en Blob
     const base64Response = await fetch(base64Image);
     const blob = await base64Response.blob();
-
-    // Créer un FormData et ajouter le fichier
     const formData = new FormData();
     formData.append('files', blob);
 
-    // Upload vers Strapi
     const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/upload`, {
       method: 'POST',
       headers: {
@@ -61,7 +57,6 @@ export default function CreateCommunityPage() {
         return;
       }
 
-      // Upload des images
       const [avatarId, bannerId] = await Promise.all([
         data.avatar ? uploadImage(data.avatar, token) : Promise.resolve(null),
         data.banner ? uploadImage(data.banner, token) : Promise.resolve(null),
@@ -76,61 +71,43 @@ export default function CreateCommunityPage() {
         banner?: number | null;
       }
 
-      const initialRequestBody = {
+      const requestBody = {
         data: {
           name: data.name,
           description: data.description,
           isPrivate: data.visibility === "private",
-          creator: parseInt(userId)
+          creator: parseInt(userId),
+          ...(avatarId && { avatar: avatarId }),
+          ...(bannerId && { banner: bannerId })
         } as CommunityData
       };
 
-      // Upload des images si présentes
-      if (avatarId) {
-        initialRequestBody.data.avatar = avatarId;
+      const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/communities`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.error?.message || 'Erreur lors de la création de la communauté');
       }
-      if (bannerId) {
-        initialRequestBody.data.banner = bannerId;
+
+      toast.success('Communauté créée avec succès !');
+      
+      if (!responseData.data) {
+        throw new Error('Structure de réponse inattendue');
       }
 
-      console.log('Données envoyées:', JSON.stringify(initialRequestBody, null, 2));
-
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/communities`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify(initialRequestBody),
-        });
-
-        const responseData = await response.json();
-        console.log('Structure complète de la réponse:', responseData);
-
-        if (!response.ok) {
-          throw new Error(responseData.error?.message || 'Erreur lors de la création de la communauté');
-        }
-
-        toast.success('Communauté créée avec succès !');
-        
-        // La structure est différente de ce qu'on attendait
-        if (!responseData.data) {
-          console.error('Structure de réponse inattendue:', responseData);
-          throw new Error('Structure de réponse inattendue');
-        }
-
-        // Utiliser le slug s'il existe, sinon utiliser le nom
-        const communitySlug = responseData.data.slug || responseData.data.name.toLowerCase().replace(/\s+/g, '_');
-        router.push(`/community/${communitySlug}`);
-      } catch (error) {
-        console.error('Erreur complète:', error);
-        toast.error('Une erreur est survenue lors de la création de la communauté');
-      } finally {
-        setPosting(false);
-      }
+      const communitySlug = responseData.data.slug || responseData.data.name.toLowerCase().replace(/\s+/g, '_');
+      router.push(`/community/${communitySlug}`);
     } catch (error) {
       toast.error('Une erreur est survenue lors de la création de la communauté');
+    } finally {
       setPosting(false);
     }
   };
