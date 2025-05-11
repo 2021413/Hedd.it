@@ -215,9 +215,9 @@ export default function HomePage() {
           })
         );
 
-        // Filtrer les résultats nuls et trier par ID
+        // Filtrer les résultats nuls et trier par ID décroissant
         const validResults = results.filter((result): result is Post => result !== null)
-          .sort((a, b) => a.id - b.id);
+          .sort((a, b) => b.id - a.id);
         
         // Mettre à jour les posts en préservant l'état des votes existant
         setPosts(prevPosts => {
@@ -281,7 +281,6 @@ export default function HomePage() {
       });
       
       if (!response.ok) {
-        console.error('Erreur lors du rafraîchissement:', response.status);
         return;
       }
       
@@ -298,7 +297,7 @@ export default function HomePage() {
       const hasDownvoted = userId ? downvotes.some((vote: any) => vote.id === userId) : false;
       
       setPosts(prevPosts => {
-        const newPosts = prevPosts.map(p => {
+        return prevPosts.map(p => {
           if (p.id === postId) {
             return {
               ...p,
@@ -311,10 +310,9 @@ export default function HomePage() {
           }
           return p;
         });
-        return newPosts;
       });
     } catch (error) {
-      console.error('Erreur lors du rafraîchissement du post:', error);
+      // Gérer l'erreur silencieusement
     }
   };
 
@@ -380,7 +378,7 @@ export default function HomePage() {
           <p className="text-xl text-gray-400">Aucun post pour le moment</p>
         </div>
       ) : (
-        [...posts].reverse().map(renderPost)
+        posts.map(renderPost)
       )}
     </div>
   );

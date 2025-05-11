@@ -49,7 +49,11 @@ export default function PostCard({
     initialVoteScore: voteScore,
     initialHasUpvoted: hasUpvoted,
     initialHasDownvoted: hasDownvoted,
-    onVoteSuccess
+    onVoteSuccess: () => {
+      if (onVoteSuccess) {
+        setTimeout(() => onVoteSuccess(), 100);
+      }
+    }
   });
 
   const displayTime = createdAt ? formatRelativeTime(new Date(createdAt)) : timeAgo;

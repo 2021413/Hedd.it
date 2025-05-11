@@ -120,12 +120,98 @@ export default function PostDetail({ postId }: PostDetailProps) {
   const [availablePosts, setAvailablePosts] = useState<{id: number, title: string}[]>([]);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [voteAction, setVoteAction] = useState<'upvote' | 'downvote' | null>(null);
-  const [initialVoteState, setInitialVoteState] = useState({
+  const [voteState, setVoteState] = useState({
     voteScore: 0,
     hasUpvoted: false,
     hasDownvoted: false
   });
   
+  const { isVoting, handleVote: hookHandleVote } = useVote({
+    postId,
+    initialVoteScore: voteState.voteScore,
+    initialHasUpvoted: voteState.hasUpvoted,
+    initialHasDownvoted: voteState.hasDownvoted,
+    onVoteSuccess: () => {
+      // On ne fait plus d'appel à refreshVotes ici
+    }
+  });
+
+  const handleVote = async (action: 'upvote' | 'downvote') => {
+    const token = localStorage.getItem('jwt');
+    if (!token) {
+      setVoteAction(action);
+      setShowLoginModal(true);
+      return;
+    }
+
+    try {
+      // Mise à jour optimiste
+      setVoteState(prevState => {
+        const newState = { ...prevState };
+        if (action === 'upvote') {
+          if (newState.hasUpvoted) {
+            newState.voteScore--;
+            newState.hasUpvoted = false;
+          } else {
+            newState.voteScore++;
+            newState.hasUpvoted = true;
+            if (newState.hasDownvoted) {
+              newState.voteScore++;
+              newState.hasDownvoted = false;
+            }
+          }
+        } else {
+          if (newState.hasDownvoted) {
+            newState.voteScore++;
+            newState.hasDownvoted = false;
+          } else {
+            newState.voteScore--;
+            newState.hasDownvoted = true;
+            if (newState.hasUpvoted) {
+              newState.voteScore--;
+              newState.hasUpvoted = false;
+            }
+          }
+        }
+        return newState;
+      });
+
+      await hookHandleVote(action);
+    } catch (error) {
+      // En cas d'erreur, on restaure l'état précédent
+      const token = localStorage.getItem('jwt');
+      const userId = token ? JSON.parse(atob(token.split('.')[1])).id : null;
+      
+      const url = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts/${postId}?populate[0]=upvotes&populate[1]=downvotes`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        cache: 'no-store'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const post = data.data;
+        
+        const upvotes = post.attributes?.upvotes?.data || [];
+        const downvotes = post.attributes?.downvotes?.data || [];
+        
+        const voteScore = upvotes.length - downvotes.length;
+        const hasUpvoted = userId ? upvotes.some((vote: any) => vote.id === userId) : false;
+        const hasDownvoted = userId ? downvotes.some((vote: any) => vote.id === userId) : false;
+        
+        setVoteState({
+          voteScore,
+          hasUpvoted,
+          hasDownvoted
+        });
+      }
+    }
+  };
+
   const fetchPost = async () => {
     try {
       if (isNaN(postId)) {
@@ -177,23 +263,24 @@ export default function PostDetail({ postId }: PostDetailProps) {
         throw new Error("Structure de données invalide reçue du serveur");
       }
       
-      console.log('API Response:', result.data);
-      
       setPost(result.data);
 
-      // Mettre à jour l'état initial des votes
-      const userId = token ? JSON.parse(atob(token.split('.')[1])).id : null;
-      const upvotes = result.data.attributes.upvotes || [];
-      const downvotes = result.data.attributes.downvotes || [];
-      
-      const hasUpvoted = userId ? upvotes.some((vote: any) => vote.id === userId) : false;
-      const hasDownvoted = userId ? downvotes.some((vote: any) => vote.id === userId) : false;
-      
-      setInitialVoteState({
-        voteScore: upvotes.length - downvotes.length,
-        hasUpvoted,
-        hasDownvoted
-      });
+      // Mettre à jour l'état des votes uniquement au chargement initial
+      if (voteState.voteScore === 0 && !voteState.hasUpvoted && !voteState.hasDownvoted) {
+        const userId = token ? JSON.parse(atob(token.split('.')[1])).id : null;
+        const upvotes = result.data.attributes.upvotes || [];
+        const downvotes = result.data.attributes.downvotes || [];
+        
+        const voteScore = upvotes.length - downvotes.length;
+        const hasUpvoted = userId ? upvotes.some((vote: any) => vote.id === userId) : false;
+        const hasDownvoted = userId ? downvotes.some((vote: any) => vote.id === userId) : false;
+        
+        setVoteState({
+          voteScore,
+          hasUpvoted,
+          hasDownvoted
+        });
+      }
       
       // Récupération des commentaires via la nouvelle route thread
       const commentsUrl = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/comments/thread?post=${postId}`;
@@ -208,7 +295,6 @@ export default function PostDetail({ postId }: PostDetailProps) {
       
       if (commentsResponse.ok) {
         const commentTree = await commentsResponse.json();
-        // L'API renvoie directement l'arbre
         const adaptedComments = commentTree.map((comment: any) => adaptCommentFromApi(comment));
         setCommentTree(adaptedComments);
       }
@@ -219,17 +305,6 @@ export default function PostDetail({ postId }: PostDetailProps) {
       setLoading(false);
     }
   };
-
-  const { voteScore, hasUpvoted, hasDownvoted, isVoting, handleVote } = useVote({
-    postId,
-    initialVoteScore: initialVoteState.voteScore,
-    initialHasUpvoted: initialVoteState.hasUpvoted,
-    initialHasDownvoted: initialVoteState.hasDownvoted,
-    onVoteSuccess: () => {
-      // Rafraîchir les données du post après un vote réussi
-      fetchPost();
-    }
-  });
 
   useEffect(() => {
     fetchPost();
@@ -283,25 +358,10 @@ export default function PostDetail({ postId }: PostDetailProps) {
     setTimeout(() => setCopied(false), 2000);
   };
   
-  const handleVoteClick = async (action: 'upvote' | 'downvote') => {
-    const token = localStorage.getItem('jwt');
-    if (!token) {
-      setVoteAction(action);
-      setShowLoginModal(true);
-      return;
-    }
-
-    try {
-      await handleVote(action);
-    } catch (error) {
-      console.error('Erreur dans handleVote:', error);
-    }
-  };
-
   const handleLoginSuccess = () => {
     setShowLoginModal(false);
     if (voteAction) {
-      handleVoteClick(voteAction);
+      handleVote(voteAction);
       setVoteAction(null);
     }
   };
@@ -412,20 +472,20 @@ export default function PostDetail({ postId }: PostDetailProps) {
           <div className="flex space-x-6">
             <button 
               className={`flex items-center gap-1 transition-colors duration-200 ${
-                hasUpvoted ? 'text-green-500' : 'text-gray-300 hover:text-green-500'
+                voteState.hasUpvoted ? 'text-green-500' : 'text-gray-300 hover:text-green-500'
               } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onClick={() => handleVoteClick('upvote')}
+              onClick={() => handleVote('upvote')}
               disabled={isVoting}
               aria-label="Like"
             >
               <FiThumbsUp size={28} />
-              {voteScore > 0 && <span className="text-green-500">{voteScore}</span>}
+              {voteState.voteScore > 0 && <span className="text-green-500">{voteState.voteScore}</span>}
             </button>
             <button 
               className={`transition-colors duration-200 ${
-                hasDownvoted ? 'text-red-500' : 'text-gray-300 hover:text-red-500'
+                voteState.hasDownvoted ? 'text-red-500' : 'text-gray-300 hover:text-red-500'
               } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onClick={() => handleVoteClick('downvote')}
+              onClick={() => handleVote('downvote')}
               disabled={isVoting}
               aria-label="Dislike"
             >
