@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { formatRelativeTime } from '@/utils/formatRelativeTime';
 import { toast } from "react-hot-toast";
 import LoginForm from "../auth/LoginForm";
-import { useVote } from '@/hooks/useVote';
+import { useVote } from '@/hooks/usePostVote';
 
 interface PostCardProps {
   subName: string;

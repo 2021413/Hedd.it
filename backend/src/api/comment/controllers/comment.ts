@@ -162,6 +162,168 @@ const createCommentController = factories.createCoreController('api::comment.com
 
     ctx.body = roots;
   },
+
+  async upvote(ctx) {
+    try {
+      const { id } = ctx.params;
+      const userId = ctx.state.user.id;
+
+      const comment = await strapi.db.query('api::comment.comment').findOne({
+        where: { id },
+        populate: ['upvotes', 'downvotes', 'author', 'post']
+      });
+
+      if (!comment) {
+        return ctx.notFound('Commentaire non trouvé');
+      }
+
+      const upvoteIds = comment.upvotes?.map(u => u.id) || [];
+      const downvoteIds = comment.downvotes?.map(d => d.id) || [];
+
+      if (upvoteIds.includes(userId)) {
+        return ctx.badRequest('Vous avez déjà upvoté ce commentaire');
+      }
+
+      const data = {
+        upvotes: [...upvoteIds, userId],
+        downvotes: downvoteIds.filter(id => id !== userId)
+      };
+
+      const updatedComment = await strapi.db.query('api::comment.comment').update({
+        where: { id },
+        data,
+        populate: ['upvotes', 'downvotes', 'author', 'post']
+      });
+
+      const score = (updatedComment.upvotes?.length || 0) - (updatedComment.downvotes?.length || 0);
+
+      return {
+        data: {
+          ...updatedComment,
+          score,
+          hasUpvoted: true,
+          hasDownvoted: false
+        }
+      };
+    } catch (error) {
+      return ctx.throw(500, error);
+    }
+  },
+
+  async downvote(ctx) {
+    try {
+      const { id } = ctx.params;
+      const userId = ctx.state.user.id;
+
+      const comment = await strapi.db.query('api::comment.comment').findOne({
+        where: { id },
+        populate: ['upvotes', 'downvotes', 'author', 'post']
+      });
+
+      if (!comment) {
+        return ctx.notFound('Commentaire non trouvé');
+      }
+
+      const upvoteIds = comment.upvotes?.map(u => u.id) || [];
+      const downvoteIds = comment.downvotes?.map(d => d.id) || [];
+
+      if (downvoteIds.includes(userId)) {
+        return ctx.badRequest('Vous avez déjà downvoté ce commentaire');
+      }
+
+      const data = {
+        downvotes: [...downvoteIds, userId],
+        upvotes: upvoteIds.filter(id => id !== userId)
+      };
+
+      const updatedComment = await strapi.db.query('api::comment.comment').update({
+        where: { id },
+        data,
+        populate: ['upvotes', 'downvotes', 'author', 'post']
+      });
+
+      const score = (updatedComment.upvotes?.length || 0) - (updatedComment.downvotes?.length || 0);
+
+      return {
+        data: {
+          ...updatedComment,
+          score,
+          hasUpvoted: false,
+          hasDownvoted: true
+        }
+      };
+    } catch (error) {
+      return ctx.throw(500, error);
+    }
+  },
+
+  async removeUpvote(ctx) {
+    try {
+      const { id } = ctx.params;
+      const userId = ctx.state.user.id;
+
+      const comment = await strapi.db.query('api::comment.comment').findOne({
+        where: { id },
+        populate: ['upvotes']
+      });
+
+      if (!comment) {
+        return ctx.notFound('Commentaire non trouvé');
+      }
+
+      const upvoteIds = comment.upvotes?.map(u => u.id) || [];
+
+      if (!upvoteIds.includes(userId)) {
+        return ctx.badRequest('Vous n\'avez pas upvoté ce commentaire');
+      }
+
+      const updatedComment = await strapi.db.query('api::comment.comment').update({
+        where: { id },
+        data: {
+          upvotes: upvoteIds.filter(id => id !== userId)
+        },
+        populate: ['upvotes', 'downvotes']
+      });
+
+      return { data: updatedComment };
+    } catch (error) {
+      return ctx.throw(500, error);
+    }
+  },
+
+  async removeDownvote(ctx) {
+    try {
+      const { id } = ctx.params;
+      const userId = ctx.state.user.id;
+
+      const comment = await strapi.db.query('api::comment.comment').findOne({
+        where: { id },
+        populate: ['downvotes']
+      });
+
+      if (!comment) {
+        return ctx.notFound('Commentaire non trouvé');
+      }
+
+      const downvoteIds = comment.downvotes?.map(d => d.id) || [];
+
+      if (!downvoteIds.includes(userId)) {
+        return ctx.badRequest('Vous n\'avez pas downvoté ce commentaire');
+      }
+
+      const updatedComment = await strapi.db.query('api::comment.comment').update({
+        where: { id },
+        data: {
+          downvotes: downvoteIds.filter(id => id !== userId)
+        },
+        populate: ['upvotes', 'downvotes']
+      });
+
+      return { data: updatedComment };
+    } catch (error) {
+      return ctx.throw(500, error);
+    }
+  },
 }));
 
 export default createCommentController;

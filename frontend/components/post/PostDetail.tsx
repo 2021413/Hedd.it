@@ -8,7 +8,7 @@ import CommentForm from "@/components/comments/CommentForm";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import LoginForm from "../auth/LoginForm";
-import { useVote } from '@/hooks/useVote';
+import { useVote } from '@/hooks/usePostVote';
 
 interface PostDetailProps {
   postId: number;
@@ -337,15 +337,31 @@ export default function PostDetail({ postId }: PostDetailProps) {
   };
 
   const adaptCommentFromApi = (comment: any): Comment => {
+    // Récupérer l'ID utilisateur courant (côté client uniquement)
+    let userId: number | null = null;
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem('jwt');
+      if (token) {
+        try {
+          userId = JSON.parse(atob(token.split('.')[1])).id;
+        } catch {}
+      }
+    }
+    const upvotes = comment.upvotes || [];
+    const downvotes = comment.downvotes || [];
+    const hasUpvoted = userId ? upvotes.some((vote: any) => vote.id === userId) : false;
+    const hasDownvoted = userId ? downvotes.some((vote: any) => vote.id === userId) : false;
     return {
       id: comment.id,
       author: comment.author?.username || "Utilisateur inconnu",
       content: comment.content,
       timeAgo: formatDateToNow(comment.createdAt),
-      likes: (comment.upvotes?.length || 0) - (comment.downvotes?.length || 0),
+      likes: upvotes.length - downvotes.length,
       avatarUrl: comment.author?.avatar?.url
         ? `${process.env.NEXT_PUBLIC_STRAPI_URL}${comment.author.avatar.url}`
         : undefined,
+      hasUpvoted,
+      hasDownvoted,
       replies: comment.replies?.length > 0
         ? comment.replies.map((reply: any) => adaptCommentFromApi(reply))
         : undefined

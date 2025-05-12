@@ -1,6 +1,7 @@
 import { ThumbsUp, ThumbsDown, MessageCircle, Link2, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import CommentForm from "./CommentForm";
+import { useCommentVote } from "../../hooks/useCommentVote";
 
 export interface Comment {
   id: number;
@@ -10,6 +11,8 @@ export interface Comment {
   likes: number;
   avatarUrl?: string;
   replies?: Comment[];
+  hasUpvoted?: boolean;
+  hasDownvoted?: boolean;
 }
 
 interface CommentThreadProps {
@@ -37,6 +40,19 @@ export default function CommentThread({
 
   const hasReplies = Boolean(comment.replies?.length);
   const containerIndent = depth * 36; // 36px extra left‑margin par niveau
+
+  const {
+    voteScore,
+    hasUpvoted,
+    hasDownvoted,
+    isVoting,
+    handleVote
+  } = useCommentVote({
+    commentId: comment.id,
+    initialVoteScore: comment.likes,
+    initialHasUpvoted: comment.hasUpvoted ?? false,
+    initialHasDownvoted: comment.hasDownvoted ?? false,
+  });
 
   return (
     <div className="w-full">
@@ -82,11 +98,27 @@ export default function CommentThread({
                 <span className="ml-1 text-xs font-medium">{comment.replies!.length}</span>
               </button>
             )}
-            <button className="flex items-center gap-1.5 hover:text-green-400 transition-colors duration-150" aria-label="Like comment">
+            <button
+              className={`flex items-center gap-1 transition-colors duration-200
+                ${hasUpvoted ? 'text-green-500' : 'text-gray-300 hover:text-green-500'}
+                ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}
+              `}
+              onClick={() => handleVote('upvote')}
+              disabled={isVoting}
+              aria-label="Like"
+            >
               <ThumbsUp size={16} />
-              {comment.likes > 0 && <span className="text-sm tabular-nums">{comment.likes}</span>}
+              {voteScore > 0 && <span className="text-green-500">{voteScore}</span>}
             </button>
-            <button className="hover:text-red-400 transition-colors duration-150" aria-label="Dislike comment">
+            <button
+              className={`transition-colors duration-200
+                ${hasDownvoted ? 'text-red-500' : 'text-gray-300 hover:text-red-500'}
+                ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}
+              `}
+              onClick={() => handleVote('downvote')}
+              disabled={isVoting}
+              aria-label="Dislike"
+            >
               <ThumbsDown size={16} />
             </button>
             <button
