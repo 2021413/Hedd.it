@@ -3,7 +3,7 @@ import CommunityClient from '@/components/community/CommunityClient';
 async function getData(name: string) {
   if (!name) return null;
 
-  const apiUrl = process.env.STRAPI_URL || 'http://127.0.0.1:1337';
+  const apiUrl = process.env.STRAPI_URL;
   const decodedName = decodeURIComponent(name);
   
   try {

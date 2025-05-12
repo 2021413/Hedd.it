@@ -16,7 +16,17 @@ interface UserProfile {
     comments: number;
   };
   joinDate: string;
-  communities: string[];
+  communities: {
+    id: string;
+    name: string;
+    banner?: string | null;
+    avatar?: string | null;
+    creatorId?: number;
+    moderators?: number[];
+    members?: number[];
+  }[];
+  posts: { id: string; title: string; content: string }[];
+  comments: { id: string; content: string; postId: string; postTitle?: string }[];
   isCurrentUser: boolean;
   isSubscribed: boolean;
 }
@@ -52,7 +62,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
         const isCurrentUser = userId === "me" || currentUser.id.toString() === userId;
 
         const userResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/users/${targetUserId}?populate[avatar][fields][0]=hash&populate[avatar][fields][1]=ext&populate[banner][fields][0]=hash&populate[banner][fields][1]=ext`,
+          `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/profile/${targetUserId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -64,9 +74,12 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
 
         const userData = await userResponse.json();
 
-        // Construct URLs for avatar and banner using hash and ext
-        const avatarUrl = userData.avatar ? `${process.env.NEXT_PUBLIC_STRAPI_URL}/uploads/${userData.avatar.hash}${userData.avatar.ext}` : null;
-        const bannerUrl = userData.banner ? `${process.env.NEXT_PUBLIC_STRAPI_URL}/uploads/${userData.banner.hash}${userData.banner.ext}` : null;
+        const avatarUrl = userData.avatar
+          ? `${process.env.NEXT_PUBLIC_STRAPI_URL}/uploads/${userData.avatar.hash}${userData.avatar.ext}`
+          : null;
+        const bannerUrl = userData.banner
+          ? `${process.env.NEXT_PUBLIC_STRAPI_URL}/uploads/${userData.banner.hash}${userData.banner.ext}`
+          : null;
 
         const userProfile: UserProfile = {
           id: userData.id,
@@ -79,19 +92,36 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
             posts: userData.createdPosts?.length || 0,
             comments: userData.authoredComments?.length || 0,
           },
-          joinDate: new Date(userData.createdAt).toLocaleDateString("fr-FR", {
+          joinDate: new Date().toLocaleDateString("fr-FR", {
             day: "numeric",
             month: "short",
             year: "numeric",
           }),
-          communities: userData.communities?.map((c: any) => c.name) || [],
+          communities: (userData.communities ?? []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            banner: c.banner?.url
+              ? c.banner.url.startsWith('http')
+                ? c.banner.url
+                : `${process.env.NEXT_PUBLIC_STRAPI_URL}${c.banner.url}`
+              : null,
+            avatar: c.avatar?.url
+              ? c.avatar.url.startsWith('http')
+                ? c.avatar.url
+                : `${process.env.NEXT_PUBLIC_STRAPI_URL}${c.avatar.url}`
+              : null,
+            creatorId: c.creator?.id,
+            moderators: c.moderators?.map((m: any) => m.id) ?? [],
+            members: c.members?.map((m: any) => m.id) ?? [],
+          })) || [],
+          posts: userData.createdPosts?.map((p: any) => ({ id: p.id, title: p.title, content: p.content })) || [],
+          comments: userData.authoredComments?.map((c: any) => ({ id: c.id, content: c.content, postId: c.post?.id, postTitle: c.post?.title })) || [],
           isCurrentUser,
           isSubscribed: false,
         };
 
         setUser(userProfile);
       } catch (error) {
-        console.error(error);
         let errorMessage = "Une erreur est survenue";
         
         if (error instanceof Error) {
@@ -118,7 +148,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500" />
       </div>
     }>
-      <ProfileContent userId={userId} />
+      <ProfileContent user={user} loading={loading} />
     </Suspense>
   );
 }

@@ -173,7 +173,7 @@ export default function CommunityClient({ community: initialCommunity }: Communi
 
   // Function to update image URLs safely
   const updateImageUrls = (communityData: Community) => {
-    const strapiBaseUrl = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
+    const strapiBaseUrl = process.env.NEXT_PUBLIC_STRAPI_URL;
     
     // Safely extract avatar URL
     if (communityData.avatar && typeof communityData.avatar === 'object') {
@@ -217,7 +217,7 @@ export default function CommunityClient({ community: initialCommunity }: Communi
 
     try {
       const token = localStorage.getItem('jwt');
-      const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL || 'http://localhost:1337';
+      const strapiUrl = process.env.NEXT_PUBLIC_STRAPI_URL;
       const currentMembers = community.members?.map(member => member.id) || [];
       
       if (parseInt(currentUserId) === community.creator.id) {

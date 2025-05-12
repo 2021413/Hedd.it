@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { FiMail, FiBell, FiShare2, FiCalendar } from "react-icons/fi";
+import { useState } from "react";
 
 interface ProfileHeaderProps {
   user: {
@@ -12,11 +13,21 @@ interface ProfileHeaderProps {
     joinDate: string;
     isCurrentUser: boolean;
     isSubscribed: boolean;
+    id: string;
   };
   onSubscribe: () => void;
 }
 
 export default function ProfileHeader({ user, onSubscribe }: ProfileHeaderProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/profile/${user.id}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <>
       <div className="relative mb-6">
@@ -79,8 +90,14 @@ export default function ProfileHeader({ user, onSubscribe }: ProfileHeaderProps)
                 >
                   Modifier le profil
                 </Link>
-                <button className="px-4 py-2 border border-green-700 text-white rounded-lg hover:bg-green-700">
+                <button
+                  onClick={handleShare}
+                  className="px-4 py-2 border border-green-700 text-white rounded-lg hover:bg-green-700 relative"
+                >
                   <FiShare2 className="inline mr-2" /> Partager
+                  {copied && (
+                    <span className="absolute left-1/2 -translate-x-1/2 top-full mt-1 text-xs bg-neutral-900 text-green-400 px-2 py-1 rounded shadow">Lien copié !</span>
+                  )}
                 </button>
               </>
             ) : (
@@ -99,8 +116,14 @@ export default function ProfileHeader({ user, onSubscribe }: ProfileHeaderProps)
                 <button className="px-4 py-2 border border-green-700 text-white rounded-lg hover:bg-green-700 flex items-center">
                   <FiMail className="inline mr-2" /> Message
                 </button>
-                <button className="px-4 py-2 border border-green-700 text-white rounded-lg hover:bg-green-700">
+                <button
+                  onClick={handleShare}
+                  className="px-4 py-2 border border-green-700 text-white rounded-lg hover:bg-green-700 relative"
+                >
                   <FiShare2 className="inline mr-2" /> Partager
+                  {copied && (
+                    <span className="absolute left-1/2 -translate-x-1/2 top-full mt-1 text-xs bg-neutral-900 text-green-400 px-2 py-1 rounded shadow">Lien copié !</span>
+                  )}
                 </button>
               </>
             )}
