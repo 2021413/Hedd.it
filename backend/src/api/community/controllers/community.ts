@@ -71,16 +71,24 @@ const createCommunityController = factories.createCoreController('api::community
       }
       
       // Ajout automatique du créateur comme membre et modérateur
-      ctx.request.body.data = {
+      const data = {
         ...communityData,
         creator: userId,
         moderators: [userId],
         members: [userId]
       };
 
-      // Création de la communauté avec le contrôleur par défaut
-      const response = await super.create(ctx);
-      return response;
+      // Création de la communauté avec le service Strapi
+      const entry = await strapi.entityService.create('api::community.community', {
+        data: data,
+        populate: {
+          creator: true,
+          members: true,
+          moderators: true
+        }
+      });
+
+      return { data: entry };
     } catch (error) {
       ctx.throw(500, error);
     }
