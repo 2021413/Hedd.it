@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { FiUsers, FiCalendar, FiInfo, FiPlus, FiMoreHorizontal, FiGlobe, FiLock } from 'react-icons/fi';
 import PostCard from '@/components/post/PostCard';
 import CommunityRules from '@/components/community/CommunityRules';
+import CommunityMenu from '@/components/community/CommunityMenu';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
@@ -14,9 +15,12 @@ import AuthModal from '@/components/auth/AuthModal';
 interface Post {
   id: string;
   title: string;
-  imageUrl: string;
+  imageUrl?: string;
   createdAt: string;
-  postUrl: string;
+  postUrl?: string;
+  media?: Array<{ url: string }>;
+  upvotes?: Array<{ id: number }>;
+  downvotes?: Array<{ id: number }>;
 }
 
 interface Rule {
@@ -307,6 +311,17 @@ export default function CommunityClient({ community: initialCommunity }: Communi
   const posts = community.posts || [];
   const totalMembers = community.members?.length || 0;
 
+  // Fonction utilitaire pour enrichir les posts avec l'état des votes
+  const getPostVoteState = (post: any) => {
+    const upvotes = post.upvotes || [];
+    const downvotes = post.downvotes || [];
+    const userId = currentUserId ? parseInt(currentUserId) : null;
+    const voteScore = upvotes.length - downvotes.length;
+    const hasUpvoted = userId !== null ? upvotes.some((vote: any) => Number(vote.id) === userId) : false;
+    const hasDownvoted = userId !== null ? downvotes.some((vote: any) => Number(vote.id) === userId) : false;
+    return { voteScore, hasUpvoted, hasDownvoted };
+  };
+
   const AboutSection = () => {
     return (
       <div className="bg-neutral-900 rounded-2xl p-6">
@@ -394,11 +409,11 @@ export default function CommunityClient({ community: initialCommunity }: Communi
                   <span>{isMember ? 'Quitter' : 'Rejoindre'}</span>
                 </button>
               )}
-              {(isModerator || (currentUserId && parseInt(currentUserId) === community.creator.id)) && (
-                <Link href={`/community/${community.name}/settings`} className="p-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 transition-colors">
-                  <FiMoreHorizontal size={24} />
-                </Link>
-              )}
+              <CommunityMenu
+                community={community}
+                isModerator={isModerator}
+                onUpdate={(updatedCommunity) => setCommunity(updatedCommunity)}
+              />
             </div>
           </div>
 
@@ -415,21 +430,28 @@ export default function CommunityClient({ community: initialCommunity }: Communi
           <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-8`}>
             <div className="flex-grow">
               <div className="space-y-6">
-                {posts.map((post) => (
-                  <PostCard
-                    key={post.id}
-                    subName={community.name}
-                    timeAgo=""
-                    title={post.title}
-                    imageUrl={post.media && post.media.length > 0 
-                      ? `${process.env.NEXT_PUBLIC_STRAPI_URL}${post.media[0].url}` 
-                      : undefined}
-                    postUrl={`/post/${post.id}`}
-                    subAvatar={avatarUrl}
-                    createdAt={post.createdAt}
-                    postId={parseInt(post.id)}
-                  />
-                ))}
+                {posts.map((post) => {
+                  // On enrichit chaque post avec l'état des votes
+                  const { voteScore, hasUpvoted, hasDownvoted } = getPostVoteState(post);
+                  return (
+                    <PostCard
+                      key={post.id}
+                      subName={community.name}
+                      timeAgo=""
+                      title={post.title}
+                      imageUrl={post.media && post.media.length > 0 
+                        ? `${process.env.NEXT_PUBLIC_STRAPI_URL}${post.media[0].url}` 
+                        : undefined}
+                      postUrl={`/post/${post.id}`}
+                      subAvatar={avatarUrl}
+                      createdAt={post.createdAt}
+                      postId={parseInt(post.id)}
+                      voteScore={voteScore}
+                      hasUpvoted={hasUpvoted}
+                      hasDownvoted={hasDownvoted}
+                    />
+                  );
+                })}
               </div>
               {posts.length === 0 && (
                 <div className="text-center py-20 bg-neutral-900 rounded-2xl">

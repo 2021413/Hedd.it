@@ -22,17 +22,23 @@ interface CommunityFormProps {
     avatar: string | null;
     banner: string | null;
     visibility: string;
-    rules: Rule[];
+    rules?: Rule[];
   }) => void;
-  posting?: boolean;
+  initialData?: {
+    name: string;
+    description: string;
+    visibility: string;
+    avatar: any;
+    banner: any;
+  };
 }
 
-export default function CommunityForm({ onSubmit }: CommunityFormProps) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [avatar, setAvatar] = useState<string | null>(null);
-  const [banner, setBanner] = useState<string | null>(null);
-  const [visibility, setVisibility] = useState("public");
+export default function CommunityForm({ onSubmit, initialData }: CommunityFormProps) {
+  const [name, setName] = useState(initialData?.name || "");
+  const [description, setDescription] = useState(initialData?.description || "");
+  const [avatar, setAvatar] = useState<string | null>(initialData?.avatar || null);
+  const [banner, setBanner] = useState<string | null>(initialData?.banner || null);
+  const [visibility, setVisibility] = useState(initialData?.visibility || "public");
   const [rules, setRules] = useState<Rule[]>([{ title: "", description: "" }]);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
@@ -333,7 +339,7 @@ export default function CommunityForm({ onSubmit }: CommunityFormProps) {
           type="submit"
           className="w-full bg-green-700 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-600 transition-colors"
         >
-          Créer la communauté
+          {initialData ? 'Modifier la communauté' : 'Créer la communauté'}
         </button>
       </div>
 

@@ -44,6 +44,16 @@ export default {
       config: {
         auth: false
       }
+    },
+    {
+      method: 'PUT',
+      path: '/communities/custom-update/:id',
+      handler: 'community.updateCommunity',
+      config: {
+        auth: {
+          scope: ['api::community.community.updateCommunity']
+        }
+      }
     }
   ]
 };

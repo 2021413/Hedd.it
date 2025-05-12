@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FiArrowLeft } from "react-icons/fi";
-import CommunityForm from "@/components/subreddit/CommunityForm";
+import CommunityForm from "@/components/community/CommunityForm";
 import { toast } from "react-hot-toast";
 import { useState } from "react";
 

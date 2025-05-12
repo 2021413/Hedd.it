@@ -7,7 +7,7 @@ async function getData(name: string) {
   const decodedName = decodeURIComponent(name);
   
   try {
-    const url = `${apiUrl}/api/communities/by-name/${encodeURIComponent(decodedName)}`;
+    const url = `${apiUrl}/api/communities/by-name/${encodeURIComponent(decodedName)}?populate[posts][populate][0]=upvotes&populate[posts][populate][1]=downvotes&populate=*`;
     const response = await fetch(url, {
       method: 'GET',
       cache: 'no-store',

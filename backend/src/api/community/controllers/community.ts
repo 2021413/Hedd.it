@@ -179,7 +179,9 @@ const createCommunityController = factories.createCoreController('api::community
           },
           posts: {
             populate: {
-              media: true
+              media: true,
+              upvotes: true,
+              downvotes: true
             }
           },
           avatar: true,
@@ -267,6 +269,40 @@ const createCommunityController = factories.createCoreController('api::community
           }
         }))
       };
+    } catch (error) {
+      return ctx.throw(500, error);
+    }
+  },
+
+  async updateCommunity(ctx) {
+    try {
+      const { id } = ctx.params;
+      const userId = ctx.state.user?.id;
+      const data = ctx.request.body.data;
+
+      // Vérifier si la communauté existe
+      const community = await strapi.entityService.findOne('api::community.community', id, {
+        populate: ['creator', 'moderators']
+      }) as StrapiCommunity;
+      if (!community) {
+        return ctx.notFound('Communauté non trouvée');
+      }
+
+      // Vérifier si l'utilisateur est modérateur ou créateur
+      const mods = (community as any).moderators;
+      const creator = (community as any).creator;
+      const isModerator = mods?.some((mod: any) => mod.id === userId);
+      const isCreator = creator?.id === userId;
+      if (!isModerator && !isCreator) {
+        return ctx.unauthorized('Vous n\'avez pas les droits pour modifier cette communauté');
+      }
+
+      // Mettre à jour la communauté
+      const updated = await strapi.entityService.update('api::community.community', id, {
+        data,
+        populate: ['creator', 'moderators', 'members', 'avatar', 'banner']
+      });
+      return { data: updated };
     } catch (error) {
       return ctx.throw(500, error);
     }
