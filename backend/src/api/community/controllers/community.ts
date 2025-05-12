@@ -57,6 +57,57 @@ interface StrapiCommunity {
 }
 
 const createCommunityController = factories.createCoreController('api::community.community', ({ strapi }) => ({
+  async find(ctx) {
+    try {
+      const data = await strapi.entityService.findMany('api::community.community', {
+        ...ctx.query,
+        sort: { id: 'asc' },
+        populate: {
+          creator: {
+            fields: ['id', 'username']
+          },
+          members: {
+            fields: ['id', 'username']
+          },
+          moderators: {
+            fields: ['id', 'username']
+          },
+          avatar: true,
+          banner: true
+        }
+      });
+
+      // Transformer les données pour correspondre au format Strapi
+      const formattedData = data.map(community => ({
+        id: community.id,
+        attributes: {
+          name: community.name,
+          slug: community.slug,
+          description: community.description,
+          isPrivate: community.isPrivate,
+          createdAt: community.createdAt,
+          updatedAt: community.updatedAt,
+          publishedAt: community.publishedAt
+        }
+      }));
+
+      return { 
+        data: formattedData,
+        meta: {
+          pagination: {
+            page: 1,
+            pageSize: formattedData.length,
+            pageCount: 1,
+            total: formattedData.length
+          }
+        }
+      };
+    } catch (error) {
+      console.error('Erreur dans find:', error);
+      return ctx.throw(500, error);
+    }
+  },
+
   async create(ctx) {
     try {
       const userId = ctx.state.user.id;
@@ -68,6 +119,17 @@ const createCommunityController = factories.createCoreController('api::community
         
         // Créer un slug à partir du nom (remplacer les espaces par des tirets)
         communityData.slug = communityData.name.toLowerCase().replace(/\s+/g, '-');
+
+        // Vérifier si une communauté avec ce slug existe déjà
+        const existingCommunity = await strapi.entityService.findMany('api::community.community', {
+          filters: {
+            slug: communityData.slug
+          }
+        });
+
+        if (existingCommunity && existingCommunity.length > 0) {
+          return ctx.badRequest('Une communauté avec ce nom existe déjà');
+        }
       }
       
       // Ajout automatique du créateur comme membre et modérateur

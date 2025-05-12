@@ -108,7 +108,7 @@ export default function PostCard({
       >
         <div className="text-base mb-2 flex items-center gap-2">
           <img 
-            src={subAvatar || "https://picsum.photos/200/200?random=" + subName} 
+            src={subAvatar || `https://placehold.co/100x100/191919/39FF14?text=${subName.charAt(0).toUpperCase()}`}
             alt={`h/${subName}`} 
             className="w-8 h-8 rounded-full object-cover"
           />
@@ -121,7 +121,7 @@ export default function PostCard({
           <span className="text-base text-gray-400">• {displayTime}</span>
         </div>
         <h2 className="text-2xl font-extrabold mb-5 leading-tight">{title}</h2>
-        {imageUrl && (
+        {imageUrl && imageUrl.trim() !== "" && (
           <div className="rounded-xl overflow-hidden mb-5">
             <img src={imageUrl} alt="post" className="w-full object-cover aspect-square max-h-[480px]" />
           </div>

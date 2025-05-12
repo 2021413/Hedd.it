@@ -145,7 +145,7 @@ export default function HomePage() {
     const fetchPostIds = async () => {
       try {
         setLoading(true);
-        const url = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts?fields[0]=id`;
+        const url = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts?fields[0]=id&sort[0]=createdAt:desc`;
         const token = localStorage.getItem('jwt');
         const response = await fetch(
           url,
@@ -162,8 +162,8 @@ export default function HomePage() {
           throw new Error(`Erreur: ${response.status}`);
         }
         const data = await response.json();
-        const ids = data.data.map((post: { id: number }) => post.id);
-        setPostIds(ids);
+        const uniqueIds = Array.from(new Set(data.data.map((post: { id: number }) => post.id))) as number[];
+        setPostIds(uniqueIds);
       } catch (error) {
         toast.error("Impossible de charger les posts");
       } finally {
@@ -197,12 +197,9 @@ export default function HomePage() {
             const data = await response.json();
             const post = normalizePost(data.data);
             
-            // Vérifier les votes de l'utilisateur
             const upvotes = post.upvotes || [];
             const downvotes = post.downvotes || [];
             const voteScore = upvotes.length - downvotes.length;
-            
-            // Vérifier si l'utilisateur a voté
             const hasUpvoted = userId ? upvotes.some((vote: any) => vote.id === userId) : false;
             const hasDownvoted = userId ? downvotes.some((vote: any) => vote.id === userId) : false;
 
@@ -215,29 +212,13 @@ export default function HomePage() {
           })
         );
 
-        // Filtrer les résultats nuls et trier par ID décroissant
-        const validResults = results.filter((result): result is Post => result !== null)
-          .sort((a, b) => b.id - a.id);
-        
-        // Mettre à jour les posts en préservant l'état des votes existant
-        setPosts(prevPosts => {
-          if (prevPosts.length === 0) {
-            return validResults;
-          }
+        const validResults = results
+          .filter((result): result is Post => result !== null)
+          .filter((post, index, self) => 
+            index === self.findIndex((p) => p.id === post.id)
+          );
 
-          return validResults.map(newPost => {
-            const existingPost = prevPosts.find(p => p.id === newPost.id);
-            if (existingPost) {
-              return {
-                ...newPost,
-                voteScore: existingPost.voteScore,
-                hasUpvoted: existingPost.hasUpvoted,
-                hasDownvoted: existingPost.hasDownvoted
-              };
-            }
-            return newPost;
-          });
-        });
+        setPosts(validResults);
       } catch (error) {
         toast.error("Impossible de charger les posts complets");
       } finally {
@@ -316,49 +297,6 @@ export default function HomePage() {
     }
   };
 
-  const renderPost = (post: any, idx: number) => {
-    const communityName = post.community?.name || "communauté";
-    let communityAvatar = post.community?.avatar || '';
-    
-    if (communityAvatar && !communityAvatar.startsWith("http")) {
-      communityAvatar = `${process.env.NEXT_PUBLIC_STRAPI_URL}${communityAvatar}`;
-    }
-    
-    if (!communityAvatar) {
-      communityAvatar = `https://placehold.co/100x100/191919/39FF14?text=${communityName.charAt(0).toUpperCase()}`;
-    }
-
-    let mediaUrl = "";
-    if (post.media && post.media.length > 0) {
-      mediaUrl = post.media[0].url;
-      if (mediaUrl && mediaUrl.startsWith("/")) {
-        mediaUrl = `${process.env.NEXT_PUBLIC_STRAPI_URL}${mediaUrl}`;
-      }
-    }
-
-    return (
-      <React.Fragment key={post.id}>
-        <PostCard
-          subName={communityName}
-          timeAgo={formatTimeAgo(post.createdAt)}
-          title={post.title}
-          imageUrl={mediaUrl}
-          postUrl={`${window.location.origin}/post/${post.id}`}
-          subAvatar={communityAvatar}
-          createdAt={post.createdAt}
-          postId={post.id}
-          voteScore={post.voteScore}
-          hasUpvoted={post.hasUpvoted}
-          hasDownvoted={post.hasDownvoted}
-          onVoteSuccess={() => refreshPost(post.id)}
-        />
-        {idx < posts.length - 1 && (
-          <div className="w-full h-[2px] bg-[#003E1C] my-2 max-w-2xl mx-auto rounded"></div>
-        )}
-      </React.Fragment>
-    );
-  };
-
   return (
     <div className="p-6 flex flex-col gap-0">
       <AuthModal 
@@ -378,7 +316,37 @@ export default function HomePage() {
           <p className="text-xl text-gray-400">Aucun post pour le moment</p>
         </div>
       ) : (
-        posts.map(renderPost)
+        <div className="flex flex-col gap-0">
+          {posts.map((post) => (
+            <div key={`post-${post.id}-${post.createdAt}`} className="flex flex-col">
+              <PostCard
+                subName={post.community?.name || "communauté"}
+                timeAgo={formatTimeAgo(post.createdAt)}
+                title={post.title}
+                imageUrl={post.media && post.media.length > 0 ? 
+                  (post.media[0].url.startsWith("/") ? 
+                    `${process.env.NEXT_PUBLIC_STRAPI_URL}${post.media[0].url}` : 
+                    post.media[0].url) : 
+                  ""}
+                postUrl={`${window.location.origin}/post/${post.id}`}
+                subAvatar={post.community?.avatar ? 
+                  (post.community.avatar.startsWith("http") ? 
+                    post.community.avatar : 
+                    `${process.env.NEXT_PUBLIC_STRAPI_URL}${post.community.avatar}`) : 
+                  `https://placehold.co/100x100/191919/39FF14?text=${(post.community?.name || "C").charAt(0).toUpperCase()}`}
+                createdAt={post.createdAt}
+                postId={post.id}
+                voteScore={post.voteScore}
+                hasUpvoted={post.hasUpvoted}
+                hasDownvoted={post.hasDownvoted}
+                onVoteSuccess={() => refreshPost(post.id)}
+              />
+              {post !== posts[posts.length - 1] && (
+                <div className="w-full h-[2px] bg-[#003E1C] my-2 max-w-2xl mx-auto rounded"></div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

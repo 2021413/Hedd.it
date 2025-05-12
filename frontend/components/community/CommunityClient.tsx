@@ -427,6 +427,7 @@ export default function CommunityClient({ community: initialCommunity }: Communi
                     postUrl={`/post/${post.id}`}
                     subAvatar={avatarUrl}
                     createdAt={post.createdAt}
+                    postId={parseInt(post.id)}
                   />
                 ))}
               </div>
