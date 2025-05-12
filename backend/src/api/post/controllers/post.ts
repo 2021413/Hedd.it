@@ -110,63 +110,57 @@ interface UpdatePostData {
 const createPostController = factories.createCoreController('api::post.post', ({ strapi }) => ({
   async find(ctx) {
     try {
-      // Récupérer les paramètres de pagination et de filtrage
-      const { query } = ctx;
+      // Récupérer les posts avec pagination et relations nécessaires
+      const { results: data, pagination: meta } = await strapi.entityService.findPage('api::post.post', {
+        ...ctx.query,
+        populate: {
+          author: { populate: ['avatar', 'banner'] },
+          community: { populate: ['avatar', 'banner'] },
+          upvotes: true,
+          downvotes: true,
+        },
+      });
 
-      // Appliquer la méthode find avec les relations nécessaires
-      const { data, meta } = await super.find(ctx);
-      
       // Enrichir la réponse avec les détails de l'auteur et de la communauté
       const enrichedData = await Promise.all(
         data.map(async (item) => {
-          const post = item.attributes;
-          const authorId = post?.author?.data?.id;
-          const communityId = post?.community?.data?.id;
+          const post = item;
+          const authorId = post.author?.id;
+          const communityId = post.community?.id;
 
-          const [author, community, upvotes, downvotes] = await Promise.all([
-            authorId ? strapi.entityService.findOne('plugin::users-permissions.user', authorId, {
-              populate: ['avatar', 'banner']
-            }) as unknown as StrapiUser : null,
-            communityId ? strapi.entityService.findOne('api::community.community', communityId, {
-              populate: ['avatar', 'banner']
-            }) as unknown as StrapiCommunity : null,
-            strapi.db.query('api::post.post').findOne({
-              where: { id: item.id },
-              populate: ['upvotes']
-            }),
-            strapi.db.query('api::post.post').findOne({
-              where: { id: item.id },
-              populate: ['downvotes']
-            })
+          const [author, community] = await Promise.all([
+            authorId
+              ? strapi.entityService.findOne('plugin::users-permissions.user', authorId, {
+                  populate: ['avatar', 'banner'],
+                })
+              : null,
+            communityId
+              ? strapi.entityService.findOne('api::community.community', communityId, {
+                  populate: ['avatar', 'banner'],
+                })
+              : null,
           ]);
 
           return {
             ...item,
-            attributes: {
-              ...post,
-              author: author ? {
-                data: {
-                  id: author.id,
-                  attributes: {
-                    username: author.username,
-                    avatar: author.avatar,
-                    banner: author.banner
-                  }
+            author: author
+              ? {
+                  id: (author as StrapiUser).id,
+                  username: (author as StrapiUser).username,
+                  avatar: (author as StrapiUser).avatar ?? null,
+                  banner: (author as StrapiUser).banner ?? null,
                 }
-              } : null,
-              community: community ? {
-                data: {
-                  id: community.id,
-                  attributes: {
-                    name: community.name,
-                    avatar: community.avatar,
-                    banner: community.banner
-                  }
+              : null,
+            community: community
+              ? {
+                  id: (community as StrapiCommunity).id,
+                  name: (community as StrapiCommunity).name,
+                  avatar: (community as StrapiCommunity).avatar ?? null,
+                  banner: (community as StrapiCommunity).banner ?? null,
                 }
-              } : null,
-              upvotes: upvotes?.upvotes || [],
-              downvotes: downvotes?.downvotes || []
-            }
+              : null,
+            upvotes: post.upvotes || [],
+            downvotes: post.downvotes || [],
           };
         })
       );
