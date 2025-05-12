@@ -61,9 +61,18 @@ const createCommunityController = factories.createCoreController('api::community
     try {
       const userId = ctx.state.user.id;
       
+      // Nettoyer le nom de la communauté en remplaçant les espaces multiples par un seul espace
+      let communityData = { ...ctx.request.body.data };
+      if (communityData.name) {
+        communityData.name = communityData.name.trim().replace(/\s+/g, ' ');
+        
+        // Créer un slug à partir du nom (remplacer les espaces par des tirets)
+        communityData.slug = communityData.name.toLowerCase().replace(/\s+/g, '-');
+      }
+      
       // Ajout automatique du créateur comme membre et modérateur
       ctx.request.body.data = {
-        ...ctx.request.body.data,
+        ...communityData,
         creator: userId,
         moderators: [userId],
         members: [userId]

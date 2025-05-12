@@ -103,7 +103,14 @@ export default function CreateCommunityPage() {
         throw new Error('Structure de réponse inattendue');
       }
 
-      const communitySlug = responseData.data.slug || responseData.data.name.toLowerCase().replace(/\s+/g, '_');
+      const communitySlug = responseData.data.slug || 
+        responseData.data.name
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+
       router.push(`/community/${communitySlug}`);
     } catch (error) {
       toast.error('Une erreur est survenue lors de la création de la communauté');
