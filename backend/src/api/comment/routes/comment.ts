@@ -64,6 +64,16 @@ module.exports = {
           scope: ['api::comment.comment.removeDownvote']
         }
       }
+    },
+    {
+      method: 'DELETE',
+      path: '/comments/:id',
+      handler: 'comment.delete',
+      config: {
+        auth: {
+          scope: ['api::comment.comment.delete']
+        }
+      }
     }
   ]
 };

@@ -282,7 +282,7 @@ export default function PostDetail({ postId }: PostDetailProps) {
         });
       }
       
-      // Récupération des commentaires via la nouvelle route thread
+      // Récupération des commentaires via route thread
       const commentsUrl = `${process.env.NEXT_PUBLIC_STRAPI_URL}/api/comments/thread?post=${postId}`;
       const commentsResponse = await fetch(commentsUrl, {
         method: 'GET',
@@ -354,6 +354,7 @@ export default function PostDetail({ postId }: PostDetailProps) {
     return {
       id: comment.id,
       author: comment.author?.username || "Utilisateur inconnu",
+      authorId: comment.author?.id,
       content: comment.content,
       timeAgo: formatDateToNow(comment.createdAt),
       likes: upvotes.length - downvotes.length,

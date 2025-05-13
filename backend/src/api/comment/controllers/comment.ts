@@ -324,6 +324,42 @@ const createCommentController = factories.createCoreController('api::comment.com
       return ctx.throw(500, error);
     }
   },
+
+  async delete(ctx) {
+    try {
+      const { id } = ctx.params;
+      const user = ctx.state.user;
+      if (!user) {
+        return ctx.unauthorized('Utilisateur non authentifié');
+      }
+      // On récupère le commentaire
+      const comment = await strapi.db.query('api::comment.comment').findOne({
+        where: { id },
+        populate: ['author', 'replies']
+      });
+      if (!comment) {
+        return ctx.notFound('Commentaire non trouvé');
+      }
+      // Seul l'auteur ou un admin peut supprimer
+      const isAdmin = user.roles?.some(r => r.code === 'strapi-super-admin' || r.code === 'admin');
+      if (comment.author?.id !== user.id && !isAdmin) {
+        return ctx.forbidden('Vous n\'êtes pas autorisé à supprimer ce commentaire');
+      }
+      // Suppression récursive des réponses
+      async function deleteReplies(commentId: number) {
+        const replies = await strapi.db.query('api::comment.comment').findMany({ where: { parent: commentId } });
+        for (const reply of replies) {
+          await deleteReplies(reply.id);
+          await strapi.db.query('api::comment.comment').delete({ where: { id: reply.id } });
+        }
+      }
+      await deleteReplies(comment.id);
+      await strapi.db.query('api::comment.comment').delete({ where: { id: comment.id } });
+      ctx.body = { message: 'Commentaire supprimé' };
+    } catch (error) {
+      return ctx.throw(500, error);
+    }
+  },
 }));
 
 export default createCommentController;

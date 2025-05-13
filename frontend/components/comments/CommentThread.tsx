@@ -1,11 +1,12 @@
-import { ThumbsUp, ThumbsDown, MessageCircle, Link2, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { ThumbsUp, ThumbsDown, MessageCircle, Link2, ChevronDown, MoreVertical, Trash2 } from "lucide-react";
 import CommentForm from "./CommentForm";
 import { useCommentVote } from "../../hooks/useCommentVote";
 
 export interface Comment {
   id: number;
   author: string;
+  authorId?: number;
   content: string;
   timeAgo: string;
   likes: number;
@@ -37,6 +38,66 @@ export default function CommentThread({
 }: CommentThreadProps) {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Récupérer l'ID utilisateur courant
+  let currentUserId: number | null = null;
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem('jwt');
+    if (token) {
+      try {
+        currentUserId = JSON.parse(atob(token.split('.')[1])).id;
+      } catch {}
+    }
+  }
+
+  // Affichage du bouton supprimer : on compare à l'id de l'auteur (authorId)
+  let isAuthor = false;
+  if (currentUserId !== null && comment.authorId !== undefined) {
+    isAuthor = comment.authorId === currentUserId;
+  }
+
+  // Gestion du clic en dehors du menu pour le fermer
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    if (menuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [menuOpen]);
+
+  // Fonction pour partager l'URL du post
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.origin + `/post/${postId}`);
+    setMenuOpen(false);
+  };
+
+  // Fonction pour supprimer le commentaire
+  const handleDelete = async () => {
+    setMenuOpen(false);
+    const token = localStorage.getItem('jwt');
+    if (!token) return;
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/comments/${comment.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        onCommentAdded?.();
+      }
+    } catch (e) {}
+  };
 
   const hasReplies = Boolean(comment.replies?.length);
   const containerIndent = depth * 36; // 36px extra left‑margin par niveau
@@ -57,7 +118,7 @@ export default function CommentThread({
   return (
     <div className="w-full">
       <div
-        className={`flex items-start gap-3 px-2 py-2`}
+        className={`flex items-start gap-3 px-2 py-2 relative`}
         style={depth > 0 ? { marginLeft: containerIndent } : {}}
       >
         {/* Avatar */}
@@ -71,10 +132,42 @@ export default function CommentThread({
 
         {/* Comment body */}
         <div className="flex-1 min-w-0">
-          {/* Meta */}
-          <div className="flex items-center mb-1 gap-2">
-            <span className="font-semibold text-green-400 text-sm">u/{comment.author}</span>
-            <span className="text-xs text-gray-400">• {comment.timeAgo}</span>
+          {/* Ligne meta + menu trois points aligné à droite */}
+          <div className="flex items-center mb-1 gap-2 justify-between">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-green-400 text-sm">u/{comment.author}</span>
+              <span className="text-xs text-gray-400">• {comment.timeAgo}</span>
+            </div>
+            {/* Menu trois points */}
+            <div className="relative flex flex-col items-center justify-center">
+              <button
+                className="p-1 rounded-full hover:bg-neutral-800 text-gray-400"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-label="Ouvrir le menu du commentaire"
+              >
+                <MoreVertical size={20} />
+              </button>
+              {menuOpen && (
+                <div ref={menuRef} className="absolute right-0 top-8 z-50 bg-neutral-900 border border-neutral-800 rounded-lg shadow-lg min-w-[140px] py-1 animate-fade-in">
+                  <button
+                    className="w-full flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-neutral-800"
+                    onClick={handleShare}
+                  >
+                    <Link2 size={16} className="mr-2" />
+                    Partager
+                  </button>
+                  {isAuthor && (
+                    <button
+                      className="w-full flex items-center px-4 py-2 text-sm text-red-400 hover:bg-neutral-800"
+                      onClick={handleDelete}
+                    >
+                      <Trash2 size={16} className="mr-2" />
+                      Supprimer
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Content */}
@@ -128,9 +221,6 @@ export default function CommentThread({
             >
               <MessageCircle size={16} className="inline mr-1" />
               {showReplyForm ? "Annuler" : "Répondre"}
-            </button>
-            <button className="hover:text-green-500" aria-label="Copy comment link">
-              <Link2 size={16} />
             </button>
           </div>
 
