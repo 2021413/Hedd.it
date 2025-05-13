@@ -54,6 +54,16 @@ export default {
           scope: ['api::community.community.updateCommunity']
         }
       }
+    },
+    {
+      method: 'DELETE',
+      path: '/communities/:id',
+      handler: 'community.deleteCommunity',
+      config: {
+        auth: {
+          scope: ['api::community.community.deleteCommunity']
+        }
+      }
     }
   ]
 };

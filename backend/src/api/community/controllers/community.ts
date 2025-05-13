@@ -306,6 +306,62 @@ const createCommunityController = factories.createCoreController('api::community
     } catch (error) {
       return ctx.throw(500, error);
     }
+  },
+
+  /**
+   * Suppression en cascade d'une communauté, de ses posts et de tous les commentaires associés à ses posts
+   * Seul le créateur ou un modérateur peut supprimer
+   */
+  async deleteCommunity(ctx) {
+    try {
+      const { id } = ctx.params;
+      const userId = ctx.state.user?.id;
+      // Vérifier si la communauté existe et récupérer les modérateurs/creator
+      const community = await strapi.entityService.findOne('api::community.community', id, {
+        populate: ['creator', 'moderators', 'posts']
+      }) as any;
+      if (!community) {
+        return ctx.notFound('Communauté non trouvée');
+      }
+      const mods = (community as any).moderators;
+      const creator = (community as any).creator;
+      const isModerator = mods?.some((mod: any) => mod.id === userId);
+      const isCreator = creator?.id === userId;
+      if (!isModerator && !isCreator) {
+        return ctx.unauthorized('Vous n\'avez pas les droits pour supprimer cette communauté');
+      }
+      // Suppression en cascade dans une transaction
+      await strapi.db.transaction(async () => {
+        // Supprimer tous les posts et leurs commentaires
+        if (Array.isArray(community.posts)) {
+          for (const post of community.posts) {
+            // Récupérer tous les commentaires du post
+            const postWithComments = await strapi.entityService.findOne('api::post.post', post.id, { populate: ['comments'] });
+            const commentsArr = (postWithComments && (postWithComments as any).comments) ? (postWithComments as any).comments : [];
+            if (Array.isArray(commentsArr) && commentsArr.length > 0) {
+              for (const comment of commentsArr) {
+                // Suppression récursive des commentaires et réponses
+                async function deleteCommentAndReplies(commentId: number) {
+                  const replies = await strapi.db.query('api::comment.comment').findMany({ where: { parent: commentId } });
+                  for (const reply of replies) {
+                    await deleteCommentAndReplies(reply.id);
+                  }
+                  await strapi.db.query('api::comment.comment').delete({ where: { id: commentId } });
+                }
+                await deleteCommentAndReplies(comment.id);
+              }
+            }
+            // Supprimer le post
+            await strapi.entityService.delete('api::post.post', post.id);
+          }
+        }
+        // Supprimer la communauté
+        await strapi.entityService.delete('api::community.community', id);
+      });
+      ctx.body = { message: 'Communauté et contenu supprimés' };
+    } catch (error) {
+      return ctx.throw(500, error);
+    }
   }
 }));
 

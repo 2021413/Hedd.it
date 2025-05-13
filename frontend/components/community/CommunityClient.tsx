@@ -87,6 +87,7 @@ export default function CommunityClient({ community: initialCommunity }: Communi
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const [isModerator, setIsModerator] = useState(false);
+  const [isCreator, setIsCreator] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState('');
   const [bannerUrl, setBannerUrl] = useState('');
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -115,6 +116,7 @@ export default function CommunityClient({ community: initialCommunity }: Communi
             setIsAuthenticated(false);
             setIsMember(false);
             setIsModerator(false);
+            setIsCreator(false);
           } else {
             setCurrentUserId(userId);
             setIsAuthenticated(true);
@@ -124,6 +126,7 @@ export default function CommunityClient({ community: initialCommunity }: Communi
           setIsAuthenticated(false);
           setIsMember(false);
           setIsModerator(false);
+          setIsCreator(false);
         }
 
         if (initialCommunity) {
@@ -138,6 +141,7 @@ export default function CommunityClient({ community: initialCommunity }: Communi
         setCurrentUserId(null);
         setIsMember(false);
         setIsModerator(false);
+        setIsCreator(false);
       } finally {
         setIsLoading(false);
       }
@@ -148,16 +152,17 @@ export default function CommunityClient({ community: initialCommunity }: Communi
 
   useEffect(() => {
     if (community && currentUserId && isAuthenticated) {
-      const isCreator = community.creator?.id === parseInt(currentUserId);
+      const isCreatorUser = community.creator?.id === parseInt(currentUserId);
+      setIsCreator(isCreatorUser);
       const isMemberOfCommunity = community.members?.some((member) => member.id === parseInt(currentUserId)) || false;
-      setIsMember(isCreator || isMemberOfCommunity);
-      
+      setIsMember(isCreatorUser || isMemberOfCommunity);
       if (community.moderators) {
         setIsModerator(community.moderators.some((mod) => mod.id === parseInt(currentUserId)));
       }
     } else {
       setIsMember(false);
       setIsModerator(false);
+      setIsCreator(false);
     }
   }, [community, currentUserId, isAuthenticated]);
 
@@ -353,6 +358,8 @@ export default function CommunityClient({ community: initialCommunity }: Communi
     );
   };
 
+  const isModeratorOrCreator = isModerator || isCreator;
+
   return (
     <>
       <div className={`flex justify-center p-4 ${isMobile ? 'flex-col' : ''}`}>
@@ -411,7 +418,7 @@ export default function CommunityClient({ community: initialCommunity }: Communi
               )}
               <CommunityMenu
                 community={community}
-                isModerator={isModerator}
+                isModerator={isModeratorOrCreator}
                 onUpdate={(updatedCommunity) => setCommunity(updatedCommunity)}
               />
             </div>
