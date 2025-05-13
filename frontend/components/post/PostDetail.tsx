@@ -2,13 +2,14 @@
 
 import React from "react";
 import { useState, useEffect } from "react";
-import { FiThumbsUp, FiThumbsDown, FiMessageCircle, FiLink } from "react-icons/fi";
+import { FiThumbsUp, FiThumbsDown, FiMessageCircle, FiLink, FiX } from "react-icons/fi";
 import CommentThread, { Comment } from "@/components/comments/CommentThread";
 import CommentForm from "@/components/comments/CommentForm";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import LoginForm from "../auth/LoginForm";
 import { useVote } from '@/hooks/usePostVote';
+import { useRouter } from "next/navigation";
 
 interface PostDetailProps {
   postId: number;
@@ -135,6 +136,8 @@ export default function PostDetail({ postId }: PostDetailProps) {
       // On ne fait plus d'appel à refreshVotes ici
     }
   });
+
+  const router = useRouter();
 
   const handleVote = async (action: 'upvote' | 'downvote') => {
     const token = localStorage.getItem('jwt');
@@ -383,6 +386,47 @@ export default function PostDetail({ postId }: PostDetailProps) {
     }
   };
   
+  // Fonction de suppression du post
+  const handleDeletePost = async () => {
+    if (!window.confirm("Voulez-vous vraiment supprimer ce post ? Cette action est irréversible.")) return;
+    const token = localStorage.getItem('jwt');
+    let decoded = null;
+    if (token) {
+      try {
+        decoded = JSON.parse(atob(token.split('.')[1]));
+      } catch (e) {
+        decoded = null;
+      }
+    }
+    if (!token) {
+      toast.error("Vous devez être connecté pour supprimer un post.");
+      return;
+    }
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts/${postId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        toast.success("Post supprimé avec succès.");
+        router.push("/");
+      } else {
+        let data = null;
+        try {
+          data = await response.json();
+        } catch (e) {
+          data = null;
+        }
+        toast.error((data && (data.error?.message || data.message)) || "Erreur lors de la suppression du post.");
+      }
+    } catch (error) {
+      toast.error("Erreur lors de la suppression du post.");
+    }
+  };
+  
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
@@ -449,9 +493,30 @@ export default function PostDetail({ postId }: PostDetailProps) {
     }
   }
   
+  // Ajout pour récupérer l'id utilisateur courant
+  let currentUserId: number | null = null;
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem('jwt');
+    if (token) {
+      try {
+        currentUserId = JSON.parse(atob(token.split('.')[1])).id;
+      } catch {}
+    }
+  }
+  
   return (
     <>
       <div className="bg-transparent hover:bg-neutral-900 transition-colors duration-200 text-white p-8 rounded-2xl shadow-lg relative">
+        {/* Croix de suppression visible uniquement pour le créateur du post */}
+        {author?.data?.id && currentUserId === author.data.id && (
+          <button
+            className="absolute top-4 right-4 text-gray-400 hover:text-red-500 bg-neutral-800 rounded-full p-2 z-10"
+            title="Supprimer le post"
+            onClick={handleDeletePost}
+          >
+            <FiX size={24} />
+          </button>
+        )}
         <div className="flex items-center mb-2">
           <div className="flex items-center gap-2">
             <Link 

@@ -95,6 +95,7 @@ interface StrapiPost {
   publishedAt?: string;
   upvotes?: Array<{ id: number }>;
   downvotes?: Array<{ id: number }>;
+  comments?: Array<{ id: number }>;
 }
 
 interface VoteData {
@@ -167,7 +168,6 @@ const createPostController = factories.createCoreController('api::post.post', ({
 
       return { data: enrichedData, meta };
     } catch (error) {
-      console.error('Erreur dans find:', error);
       return ctx.throw(500, error);
     }
   },
@@ -242,7 +242,6 @@ const createPostController = factories.createCoreController('api::post.post', ({
         }
       };
     } catch (error) {
-      console.error('Erreur dans findOne:', error);
       return ctx.throw(500, error);
     }
   },
@@ -333,7 +332,7 @@ const createPostController = factories.createCoreController('api::post.post', ({
 
       // Vérification que l'utilisateur est l'auteur du post
       const existingPost = await strapi.entityService.findOne('api::post.post', id, {
-        populate: ['author', 'community.moderators']
+        populate: ['author', 'community.moderators', 'comments']
       }) as unknown as StrapiPost;
 
       if (!existingPost) {
@@ -341,14 +340,32 @@ const createPostController = factories.createCoreController('api::post.post', ({
       }
 
       const isAuthor = existingPost.author?.id === userId;
-      const isModerator = existingPost.community?.moderators.some(mod => mod.id === userId);
+      const isModerator = existingPost.community?.moderators?.some(mod => mod.id === userId);
 
       if (!isAuthor && !isModerator) {
-        return ctx.forbidden('Vous n\'êtes pas autorisé à supprimer ce post');
+        return ctx.forbidden({ message: "Vous n'êtes pas autorisé à supprimer ce post" });
+      }
+
+      // Suppression récursive de tous les commentaires associés au post
+      async function deleteCommentAndReplies(commentId: number) {
+        // Supprimer d'abord toutes les réponses (récursif)
+        const replies = await strapi.db.query('api::comment.comment').findMany({ where: { parent: commentId } });
+        for (const reply of replies) {
+          await deleteCommentAndReplies(reply.id);
+        }
+        // Supprimer le commentaire lui-même
+        await strapi.db.query('api::comment.comment').delete({ where: { id: commentId } });
+      }
+
+      // Supprimer tous les commentaires principaux du post (et leurs réponses)
+      if (existingPost.comments && existingPost.comments.length > 0) {
+        for (const comment of existingPost.comments) {
+          await deleteCommentAndReplies(comment.id);
+        }
       }
 
       // Suppression du post
-      const deletedPost = await super.delete(ctx);
+      const deletedPost = await strapi.entityService.delete('api::post.post', id);
       return deletedPost;
     } catch (error) {
       return ctx.throw(500, error);

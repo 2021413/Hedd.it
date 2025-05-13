@@ -54,7 +54,7 @@ export default {
       handler: 'post.delete',
       config: {
         auth: {
-          scope: ['delete']
+          scope: ['api::post.post.delete']
         }
       }
     },
