@@ -30,6 +30,7 @@ interface CommunityFormProps {
     visibility: string;
     avatar: any;
     banner: any;
+    rules?: { title: string; description: string }[];
   };
 }
 
@@ -39,7 +40,7 @@ export default function CommunityForm({ onSubmit, initialData }: CommunityFormPr
   const [avatar, setAvatar] = useState<string | null>(initialData?.avatar || null);
   const [banner, setBanner] = useState<string | null>(initialData?.banner || null);
   const [visibility, setVisibility] = useState(initialData?.visibility || "public");
-  const [rules, setRules] = useState<Rule[]>([{ title: "", description: "" }]);
+  const [rules, setRules] = useState<Rule[]>(initialData?.rules && initialData.rules.length > 0 ? initialData.rules : [{ title: "", description: "" }]);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
 

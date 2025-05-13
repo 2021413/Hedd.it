@@ -45,6 +45,7 @@ export default function CreateCommunityPage() {
     avatar: string | null;
     banner: string | null;
     visibility: string;
+    rules?: { title: string; description: string }[];
   }) => {
     try {
       setPosting(true);
@@ -69,6 +70,7 @@ export default function CreateCommunityPage() {
         creator: number;
         avatar?: number | null;
         banner?: number | null;
+        rules?: { title: string; description: string }[];
       }
 
       const requestBody = {
@@ -78,7 +80,8 @@ export default function CreateCommunityPage() {
           isPrivate: data.visibility === "private",
           creator: parseInt(userId),
           ...(avatarId && { avatar: avatarId }),
-          ...(bannerId && { banner: bannerId })
+          ...(bannerId && { banner: bannerId }),
+          ...(data.rules && data.rules.length > 0 ? { rules: data.rules } : {})
         } as CommunityData
       };
 

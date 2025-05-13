@@ -23,9 +23,9 @@ export default function CommunityRules({ communityName, rules }: CommunityRulesP
       </div>
       
       <div className="space-y-4">
-        {rules.map((rule) => (
-          <div key={rule.id} className="border-b border-neutral-800 pb-4 last:border-0">
-            <div className="font-medium text-lg mb-1">{rule.id}. {rule.title}</div>
+        {rules.map((rule, index) => (
+          <div key={rule.id ? `${rule.id}-${index}` : index} className="border-b border-neutral-800 pb-4 last:border-0">
+            <div className="font-medium text-lg mb-1">{index + 1}. {rule.title}</div>
             <div className="text-gray-400 text-sm">{rule.description}</div>
           </div>
         ))}
