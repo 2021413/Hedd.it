@@ -44,23 +44,53 @@ Application web inspirée de Reddit, permettant la création et la gestion de co
 
 ```bash
 ├── frontend/
+│   ├── app/                         # Pages et routes Next.js (communities, posts, profils, etc.)
 │   ├── components/
-│   │   ├── post/                 # PostCard, PostDetail, PostForm
-│   │   ├── community/            # CommunityMenu, CommunityForm, etc.
-│   │   ├── comments/             # CommentThread, CommentForm
-│   │   ├── auth/                 # AuthModal, LoginForm, RegisterForm
-│   │   └── profile/              # Profil utilisateur
-│   ├── pages/                    # Pages dynamiques Next.js
-│   └── public/                   # Fichiers statiques (avatars, logos)
+│   │   ├── auth/                    # AuthModal, LoginForm, RegisterForm
+│   │   ├── comments/                # CommentThread, CommentForm
+│   │   ├── community/               # CommunityMenu, CommunityForm, CommunityRules, CommunityClient
+│   │   ├── header/                  # Header, LockedHeader
+│   │   ├── post/                    # PostCard, PostDetail, PostForm
+│   │   ├── profile/                 # ProfileContent, ProfileHeader, TabContent, StatCard
+│   │   ├── settings/                # PasswordSettings, ProfileSettings, NotificationSettings
+│   │   ├── sidebar/                 # Sidebar
+│   │   ├── ui/                      # Avatar, BurgerButton
+│   ├── hooks/                       # Hooks personnalisés (usePostVote, useCommentVote)
+│   ├── utils/                       # Fonctions utilitaires (formatRelativeTime)
+│   ├── public/                      # Fichiers statiques (avatars, bannières, logos)
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── ...
 │
 ├── backend/
 │   ├── src/
-│   │   ├── api/                  # Collections (posts, communautés, etc.)
-│   │   ├── config/               # CORS, plugins, base de données
-│   │   └── extensions/           # Custom routes/controllers (si nécessaire)
-│   └── uploads/                  # Fichiers et médias
-│
-└── README.md                     # Ce fichier
+│   │   ├── api/
+│   │   │   ├── comment/
+│   │   │   │   ├── content-types/
+│   │   │   │   ├── controllers/
+│   │   │   │   └── routes/
+│   │   │   ├── community/
+│   │   │   │   ├── content-types/
+│   │   │   │   ├── controllers/
+│   │   │   │   └── routes/
+│   │   │   ├── post/
+│   │   │   │   ├── content-types/
+│   │   │   │   ├── controllers/
+│   │   │   │   └── routes/
+│   │   │   ├── profile/
+│   │   │   │   ├── controllers/
+│   │   │   │   └── routes/
+│   │   ├── extensions/
+│   │   ├── policies/
+│   │   └── admin/
+│   ├── public/
+│   │   └── uploads/                 # Fichiers et médias uploadés
+│   ├── types/
+│   │   └── generated/
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── ...
+└── README.md                        # Ce fichier
 ```
 
 ---
