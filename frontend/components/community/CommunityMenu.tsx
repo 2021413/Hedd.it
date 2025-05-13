@@ -134,10 +134,12 @@ export default function CommunityMenu({ community, isModerator, onUpdate }: Comm
       toast.success('Communauté mise à jour avec succès !');
       setShowEditForm(false);
       setPosting(false);
+      // Fermer la sidebar si elle est ouverte
+      window.dispatchEvent(new Event('close-sidebar'));
       if (updatedData.data.slug && updatedData.data.slug !== community.slug) {
         router.push(`/community/${updatedData.data.slug}`);
       } else {
-        router.refresh();
+        window.location.reload();
       }
     } catch (error) {
       toast.error('Erreur lors de la mise à jour de la communauté');
@@ -160,6 +162,8 @@ export default function CommunityMenu({ community, isModerator, onUpdate }: Comm
       const result = await response.json().catch(() => null);
       if (!response.ok) throw new Error(result?.message || 'Erreur lors de la suppression de la communauté');
       toast.success(result?.message || 'Communauté supprimée avec succès !');
+      // Fermer la sidebar si elle est ouverte
+      window.dispatchEvent(new Event('close-sidebar'));
       router.push('/');
     } catch (error: any) {
       toast.error(error.message || 'Erreur lors de la suppression de la communauté');

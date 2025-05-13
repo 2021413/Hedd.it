@@ -175,7 +175,19 @@ const ProfileSettings = () => {
         throw new Error("Erreur lors de la mise à jour de l'utilisateur");
       }
 
-      await userUpdateRes.json();
+      const updatedUser = await userUpdateRes.json();
+      localStorage.setItem('user', JSON.stringify({
+        id: updatedUser.id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        avatar: updatedUser.avatar ? {
+          id: updatedUser.avatar.id,
+          hash: updatedUser.avatar.hash,
+          ext: updatedUser.avatar.ext
+        } : undefined
+      }));
+      window.dispatchEvent(new Event('auth-change'));
+
       alert("Profil mis à jour avec succès !");
       setNewProfileImage(null);
       setNewBannerImage(null);

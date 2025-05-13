@@ -493,6 +493,20 @@ export default function PostDetail({ postId }: PostDetailProps) {
     }
   }
   
+  // Génération du slug si absent
+  let communitySlug = (community?.data as any)?.attributes?.slug;
+  if (!communitySlug && community?.data?.attributes?.name) {
+    communitySlug = community.data.attributes.name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[^\u0000-\u007F]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+  if (!communitySlug && community?.data?.id) {
+    communitySlug = community.data.id;
+  }
+  
   // Ajout pour récupérer l'id utilisateur courant
   let currentUserId: number | null = null;
   if (typeof window !== "undefined") {
@@ -520,7 +534,7 @@ export default function PostDetail({ postId }: PostDetailProps) {
         <div className="flex items-center mb-2">
           <div className="flex items-center gap-2">
             <Link 
-              href={`/community/${community?.data?.id || ''}`}
+              href={`/community/${communitySlug}`}
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
               <img 

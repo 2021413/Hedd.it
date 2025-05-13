@@ -280,6 +280,39 @@ export default function CommunityClient({ community: initialCommunity }: Communi
     }
   };
 
+  // Fonction de suppression d'un post
+  const handleDeletePost = async (postId: string) => {
+    if (!window.confirm("Voulez-vous vraiment supprimer ce post ? Cette action est irréversible.")) return;
+    const token = localStorage.getItem('jwt');
+    if (!token) {
+      toast.error("Vous devez être connecté pour supprimer un post.");
+      return;
+    }
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_STRAPI_URL}/api/posts/${postId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        toast.success("Post supprimé avec succès.");
+        setCommunity((prev) => prev ? { ...prev, posts: prev.posts.filter(p => p.id !== postId) } : prev);
+      } else {
+        let data = null;
+        try {
+          data = await response.json();
+        } catch (e) {
+          data = null;
+        }
+        toast.error((data && (data.error?.message || data.message)) || "Erreur lors de la suppression du post.");
+      }
+    } catch (error) {
+      toast.error("Erreur lors de la suppression du post.");
+    }
+  };
+
   // Handle loading state
   if (isLoading) {
     return (
@@ -440,6 +473,7 @@ export default function CommunityClient({ community: initialCommunity }: Communi
                 {posts.map((post) => {
                   // On enrichit chaque post avec l'état des votes
                   const { voteScore, hasUpvoted, hasDownvoted } = getPostVoteState(post);
+                  const canDelete = isModeratorOrCreator;
                   return (
                     <PostCard
                       key={post.id}
@@ -456,6 +490,8 @@ export default function CommunityClient({ community: initialCommunity }: Communi
                       voteScore={voteScore}
                       hasUpvoted={hasUpvoted}
                       hasDownvoted={hasDownvoted}
+                      canDelete={canDelete}
+                      onDelete={() => handleDeletePost(post.id)}
                     />
                   );
                 })}

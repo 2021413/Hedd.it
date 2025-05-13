@@ -95,6 +95,19 @@ const Sidebar: React.FC<SidebarProps> = ({ showBurgerButton, onBurgerClick, isMe
     };
   }, [isOpen]);
   
+  // Ajout : écoute l'événement pour fermer la sidebar
+  useEffect(() => {
+    const handleCloseSidebar = () => {
+      if (isOpen && typeof onBurgerClick === 'function') {
+        onBurgerClick();
+      }
+    };
+    window.addEventListener('close-sidebar', handleCloseSidebar);
+    return () => {
+      window.removeEventListener('close-sidebar', handleCloseSidebar);
+    };
+  }, [isOpen, onBurgerClick]);
+  
   const menuItems = [
     { icon: <FiHome size={20} />, label: 'Accueil', href: '/' },
     { icon: <FiPlusCircle size={20} />, label: 'Créer un post', href: '/create-post' },

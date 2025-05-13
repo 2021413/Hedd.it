@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { FiThumbsUp, FiThumbsDown, FiMessageCircle, FiLink } from "react-icons/fi";
+import { FiThumbsUp, FiThumbsDown, FiMessageCircle, FiLink, FiX } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { formatRelativeTime } from '@/utils/formatRelativeTime';
 import { toast } from "react-hot-toast";
@@ -22,6 +22,8 @@ interface PostCardProps {
   hasDownvoted?: boolean;
   isLoading?: boolean;
   onVoteSuccess?: () => void;
+  canDelete?: boolean;
+  onDelete?: () => void;
 }
 
 export default function PostCard({ 
@@ -37,7 +39,9 @@ export default function PostCard({
   hasUpvoted = false,
   hasDownvoted = false,
   isLoading = false,
-  onVoteSuccess
+  onVoteSuccess,
+  canDelete = false,
+  onDelete
 }: PostCardProps) {
   const [copied, setCopied] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -104,8 +108,17 @@ export default function PostCard({
     <>
       <div 
         onClick={handleClick}
-        className="bg-transparent hover:bg-neutral-900 transition-colors duration-200 text-white p-8 rounded-2xl shadow-lg w-full max-w-2xl mx-auto cursor-pointer"
+        className="bg-transparent hover:bg-neutral-900 transition-colors duration-200 text-white p-8 rounded-2xl shadow-lg w-full max-w-2xl mx-auto cursor-pointer relative"
       >
+        {canDelete && (
+          <button
+            className="absolute top-4 right-4 text-gray-400 hover:text-red-500 bg-neutral-800 rounded-full p-2 z-10"
+            title="Supprimer le post"
+            onClick={e => { e.stopPropagation(); onDelete && onDelete(); }}
+          >
+            <FiX size={24} />
+          </button>
+        )}
         <div className="text-base mb-2 flex items-center gap-2">
           <img 
             src={subAvatar || `https://placehold.co/100x100/191919/39FF14?text=${subName.charAt(0).toUpperCase()}`}
